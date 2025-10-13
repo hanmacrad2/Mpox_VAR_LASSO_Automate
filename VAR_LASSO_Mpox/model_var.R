@@ -160,7 +160,7 @@ EXTRACT_NONZERO_LASSO_COEFFS <- function(coef_matrix, list_ordered_jur = NULL) {
 }
 
 
-#***************************************************************************
+#MATRIX_LASSO_RENAME_COLS
 MATRIX_LASSO_RENAME_COLS <- function(mat, juris_names) {
   # Rename rows: Y1, Y2, ..., Yn → juris_names
   row_mapping <- setNames(juris_names, paste0("Y", seq_along(juris_names)))
