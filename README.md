@@ -19,9 +19,7 @@ You can install the package in R from GitHub using:
 ```
 install.packages("devtools")  # only needed once
 library(devtools)
-
 devtools::install_github("hanmacrad2/Mpox_VAR_LASSO_Automate/VARLASSOMpox")
-
 library(VARLASSOMpox)
 
 ```
@@ -45,17 +43,16 @@ library(VARLASSOMpox)
 1. Format and smooth the data using the file: 
 ```
 1_get_and_format_mpox_data.R
-
 ```
-2. Generate the forecasts using
+2. Generate the forecasts using the file:
 ```
 2_run_var_lasso_model.R
-
 ```
 
-3.Plot the forecasts and determine the performance metrics
+3.Plot the forecasts and determine the performance metrics using the file: 
 ```
 3_get_results_and_plot.R
 ```
+
 
 
