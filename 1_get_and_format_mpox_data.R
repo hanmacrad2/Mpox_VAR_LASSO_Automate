@@ -36,7 +36,7 @@ df_model_smooth = df_model_smooth %>% filter(Year >= START_YEAR_INTEREST)
 #* 4. TRAIN TEST SPLIT FOR MODEL FITTING
 
 #i.SELECT TRAINING END WEEK
-TRAIN_WEEK = 85 #end of 2023
+TRAIN_WEEK = 84 #end of 2023
 print(paste0('TRAIN_WEEK: ', TRAIN_WEEK))
 
 #TRAIN_WEEK = 135 #end of 2024

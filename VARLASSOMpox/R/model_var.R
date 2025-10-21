@@ -82,17 +82,7 @@ VAR_LASSO_FORECAST_TWO_STEP <- function(train_data_ts, future_data_ts, future_re
   
   results_df <- results_df %>%
     mutate(error = Actual - Predicted)
-  
-  #PERFORMANCE METRICS
   print(summary(results_df$error))
-  mse_result <- MSE(results_df$Actual, results_df$Predicted)
-  rmse_result <- sqrt(mse_result)
-  cat('MSE:', mse_result, '\n')
-  cat('RMSE:', rmse_result, '\n')
-  
-  #MEAN ABSOLUTE ERROR 
-  mae = mean(abs(results_df$Actual - results_df$Predicted))
-  cat('MAE:', mae, '\n')
   
   # Also create wide-format versions (optional)
   df_pred <- pivot_wider(results_df, names_from = Jurisdiction, values_from = Predicted) %>%
@@ -105,8 +95,6 @@ VAR_LASSO_FORECAST_TWO_STEP <- function(train_data_ts, future_data_ts, future_re
     preds = df_pred,
     true = df_true,
     df_coeffs = df_coeffs,
-    rmse = rmse_result,
-    mae = mae,
     coeffs_final = coef(cv_model_tmp_2)
   ))
 }
@@ -159,24 +147,3 @@ EXTRACT_NONZERO_LASSO_COEFFS <- function(coef_matrix, list_ordered_jur = NULL) {
   return(nonzero_coefs)
 }
 
-
-#MATRIX_LASSO_RENAME_COLS
-MATRIX_LASSO_RENAME_COLS <- function(mat, juris_names) {
-  # Rename rows: Y1, Y2, ..., Yn → juris_names
-  row_mapping <- setNames(juris_names, paste0("Y", seq_along(juris_names)))
-  rownames(mat) <- row_mapping[rownames(mat)]
-  
-  # Rename columns: e.g., Y3L1 → Colorado_L1
-  colnames(mat) <- sapply(colnames(mat), function(colname) {
-    if (grepl("^Y\\d+", colname)) {
-      match <- regmatches(colname, regexpr("^Y\\d+", colname))  # e.g., Y3
-      index <- as.numeric(sub("Y", "", match))                  # e.g., 3
-      new_name <- juris_names[index]                            # e.g., Colorado
-      sub("^Y\\d+", paste0(new_name, "_"), colname)             # replace Y3 with Colorado_
-    } else {
-      colname  # leave "intercept" or any non-lag columns as-is
-    }
-  })
-  
-  return(mat)
-}

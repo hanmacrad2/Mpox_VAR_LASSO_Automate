@@ -11,7 +11,6 @@ df_preds_naive = naive_estimates_two_step$df_pred_results
 title = 'VAR two week-ahead Forecasts - Top 8 Jurisidictions by Case count in 2023 & 2024'
 PLOT_DATES_TRUE_FORECAST(data_24_ts_forecast_start, df_preds_var, list_jur, title, n_col_plot = 3)
 
-
 #3. GET PERFORMANCE METRICS
 #i. METRIC: SLOPE-WEIGHTED AT OBSERVATIONAL/GLOBAL LEVEL
 df_slope = GET_DF_WEIGHTED_SLOPE(df_mpox_smooth, list_jur)

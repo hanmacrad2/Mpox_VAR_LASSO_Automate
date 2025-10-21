@@ -4,6 +4,7 @@
 'Get two week ahead forecasts'
 
 #SEP
+ROLL_WINDOW = 4
 n_lags = 25
 print(paste0('TRAIN FINAL WEEK: ', TRAIN_WEEK))
 

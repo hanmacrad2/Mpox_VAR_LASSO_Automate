@@ -95,3 +95,24 @@ GET_SLOPE_WEIGHTED_IMPROVEMENT <- function(df_slope, df_preds1, df_preds2) {
   
   return(df_out)
 }
+
+#ADDITIONAL FUNCTION
+MATRIX_LASSO_RENAME_COLS <- function(mat, juris_names) {
+  # Rename rows: Y1, Y2, ..., Yn → juris_names
+  row_mapping <- setNames(juris_names, paste0("Y", seq_along(juris_names)))
+  rownames(mat) <- row_mapping[rownames(mat)]
+  
+  # Rename columns: e.g., Y3L1 → Colorado_L1
+  colnames(mat) <- sapply(colnames(mat), function(colname) {
+    if (grepl("^Y\\d+", colname)) {
+      match <- regmatches(colname, regexpr("^Y\\d+", colname))  # e.g., Y3
+      index <- as.numeric(sub("Y", "", match))                  # e.g., 3
+      new_name <- juris_names[index]                            # e.g., Colorado
+      sub("^Y\\d+", paste0(new_name, "_"), colname)             # replace Y3 with Colorado_
+    } else {
+      colname  # leave "intercept" or any non-lag columns as-is
+    }
+  })
+  
+  return(mat)
+}
