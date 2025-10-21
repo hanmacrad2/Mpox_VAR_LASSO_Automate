@@ -1,10 +1,14 @@
 #**********************************
 #DATA 
 #*********************************
+#LIBRARIRES
+library(VARLASSOMpox)
+FOLDER = "C:/Users/h2cra/OneDrive/Documents/GitHub/Mpox_VAR_LASSO_Automate/"
+source(paste0(FOLDER, 'libs_required.R'))
 
 #DATA FOLDER 
 DATA_FOLDER <- "C:/Users/h2cra/OneDrive/Documents/UCSD/PROJECTS/Project_2_Mpox/Data/DATA_2025/"
-file_name = 'data_mpox.csv'
+file_name = 'data_mpox_final_22_2025.csv'
 data_mpox = read.csv(paste0(DATA_FOLDER, file_name)) 
 
 #*********************************************************
@@ -32,11 +36,11 @@ df_model_smooth = df_model_smooth %>% filter(Year >= START_YEAR_INTEREST)
 #* 4. TRAIN TEST SPLIT FOR MODEL FITTING
 
 #i.SELECT TRAINING END WEEK
-TRAIN_WEEK = 85 
+TRAIN_WEEK = 85 #end of 2023
 print(paste0('TRAIN_WEEK: ', TRAIN_WEEK))
 
-TRAIN_WEEK = 135 #end of 2024
-print(paste0('TRAIN_WEEK: ', TRAIN_WEEK))
+#TRAIN_WEEK = 135 #end of 2024
+#print(paste0('TRAIN_WEEK: ', TRAIN_WEEK))
 
 #ii. SPLIT into train & test sets 
 list_data = get_train_test_data(data_mpox_model, TRAIN_WEEK)
@@ -63,14 +67,14 @@ data_24_ts_forecast_start = GET_TS_DATA(data_24_forecast_start)
 #* SMOOTH DATA FOR MODEL
 
 #i. TEST-TRAIN SPLIT
-list_data_smooth = get_train_test_data(df_mpox_smooth, TRAIN_WEEK)
+list_data_smooth = get_train_test_data(df_model_smooth, TRAIN_WEEK)
 train_data_smooth = list_data_smooth$train_data
 future_data_smooth = list_data_smooth$future_data
 
 #ii. FORMAT TIME-SERIES DATA -> INTO LONG DATA (jurisdictions == columns, rows == time)
 train_data_ts_smooth = GET_TS_DATA(train_data_smooth)
 future_data_ts_smooth = GET_TS_DATA(future_data_smooth)
-data_tot_ts_smooth = GET_TS_DATA(df_mpox_smooth)
+data_tot_ts_smooth = GET_TS_DATA(df_model_smooth)
 
 
 
