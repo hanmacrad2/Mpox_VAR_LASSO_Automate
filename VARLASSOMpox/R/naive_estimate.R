@@ -45,13 +45,6 @@ SIMPLE_NAIVE_FORECAST <- function(train_data_ts, future_data_ts, future_real_ts,
   results_df <- results_df %>%
     mutate(error = Actual - Predicted)
   
-  # Performance metrics
-  mse_result <- MSE(results_df$Actual, results_df$Predicted)
-  rmse_result <- sqrt(mse_result)
-  print(paste0('rmse: ', rmse_result))
-  mae_result <- mean(abs(results_df$Actual - results_df$Predicted))
-  print(paste0('mae_result: ', mae_result))
-  
   # Reshape
   df_pred <- pivot_wider(results_df, names_from = Jurisdiction, values_from = Predicted) %>%
     arrange(Week_Number)
@@ -61,8 +54,6 @@ SIMPLE_NAIVE_FORECAST <- function(train_data_ts, future_data_ts, future_real_ts,
   return(list(
     df_pred_results = results_df,
     preds = df_pred,
-    true = df_true,
-    rmse = rmse_result,
-    mae = mae_result
+    true = df_true
   ))
 }

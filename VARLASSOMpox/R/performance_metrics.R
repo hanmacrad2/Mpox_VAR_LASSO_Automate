@@ -18,7 +18,7 @@ GET_DF_WEIGHTED_SLOPE <- function(df_mpox_smooth, list_jur){
     
     df_slope_jur <- data.frame(
       Jurisdiction = jur,
-      date_week_start = date_week_start,
+      date_week_start = as.Date(date_week_start),
       delta_yt = delta_yt
     )
     
@@ -72,8 +72,11 @@ GET_SLOPE_WEIGHTED_IMPROVEMENT <- function(df_slope, df_preds1, df_preds2) {
   
   # Calculate percentage improvements
   var_rmse_pcent_improve <- 100 * (naive_w_slope_rmse - var_w_slope_rmse) / naive_w_slope_rmse
+  print(paste0('var_rmse_pcent_improve %; ', round(var_rmse_pcent_improve,2)))
   var_mae_pcent_improve <- 100 * (naive_w_slope_mae - var_w_slope_mae) / naive_w_slope_mae
+  print(paste0('var_mae_pcent_improve %; ', round(var_mae_pcent_improve,2)))
   var_bias_pcent_improve <- 100 * (naive_w_slope_bias - var_w_slope_bias) / naive_w_slope_bias
+  print(paste0('var_bias_pcent_improve %; ', round(var_bias_pcent_improve,2)))
   
   # Return as one-row dataframe
   var_w_slope_rmse = round(var_w_slope_rmse, 3)
@@ -95,6 +98,79 @@ GET_SLOPE_WEIGHTED_IMPROVEMENT <- function(df_slope, df_preds1, df_preds2) {
   
   return(df_out)
 }
+
+GET_SLOPE_METRICS_JURISDICTION <- function(df_preds, df_slope, list_order) {
+  
+  df_metrics <- data.frame()
+  
+  for (jur in list_order) {
+    
+    # Filter predictions and slope for the jurisdiction
+    df_preds_jur <- df_preds %>% filter(Jurisdiction == jur)
+    df_slope_jur <- df_slope %>% filter(Jurisdiction == jur)
+    
+    # Get slope-weighted metrics as a named list
+    slope_metrics <- GET_SLOPE_WEIGHTED_METRICS(df_slope_jur, df_preds_jur)
+    
+    # Add row to summary dataframe
+    df_metrics <- bind_rows(df_metrics, tibble(
+      Jurisdiction = jur,
+      slope_weighted_rmse = slope_metrics$slope_weighted_rmse,
+      slope_weighted_mae  = slope_metrics$slope_weighted_mae,
+      slope_weighted_bias = slope_metrics$slope_weighted_bias
+    ))
+  }
+  
+  
+  return(df_metrics)
+}
+
+GET_JUR_METRICS_MODELS_COMPARED <- function(df1, df2, df_slope, list_order) {
+  
+  res1 <- GET_SLOPE_METRICS_JURISDICTION(df1, df_slope, list_order)
+  res2 <- GET_SLOPE_METRICS_JURISDICTION(df2, df_slope, list_order)
+  
+  df_combined <- res1 %>%
+    rename(
+      var_w_slope_rmse = slope_weighted_rmse,
+      var_w_slope_mae  = slope_weighted_mae,
+      var_w_slope_bias = slope_weighted_bias
+    ) %>%
+    left_join(
+      res2 %>% rename(
+        naive_w_slope_rmse = slope_weighted_rmse,
+        naive_w_slope_mae  = slope_weighted_mae,
+        naive_w_slope_bias = slope_weighted_bias
+      ),
+      by = "Jurisdiction"
+    ) %>%
+    mutate(
+      var_rmse_pcent_improve = round(100 * (naive_w_slope_rmse - var_w_slope_rmse) / naive_w_slope_rmse, 10),
+      var_mae_pcent_improve  = round(100 * (naive_w_slope_mae  - var_w_slope_mae)  / naive_w_slope_mae, 10),
+      var_bias_pcent_improve = round(100 * (naive_w_slope_bias - var_w_slope_bias) / naive_w_slope_bias, 10)
+    ) %>%
+    dplyr::select(
+      Jurisdiction,
+      var_w_slope_rmse, naive_w_slope_rmse, var_rmse_pcent_improve,
+      var_w_slope_mae,  naive_w_slope_mae,  var_mae_pcent_improve,
+      var_w_slope_bias, naive_w_slope_bias, var_bias_pcent_improve
+    ) %>%
+    mutate(Jurisdiction = factor(Jurisdiction, levels = list_order)) %>%
+    arrange(Jurisdiction)
+  
+  # Create the average row
+  avg_row <- df_combined %>%
+    dplyr::select(-Jurisdiction) %>%
+    summarise(across(everything(), ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(Jurisdiction = "Average") %>%
+    dplyr::select(Jurisdiction, everything())
+  
+  # Bind to bottom of full table
+  df_final <- bind_rows(df_combined, avg_row)
+  
+  return(df_final)
+}
+
 
 #ADDITIONAL FUNCTION
 MATRIX_LASSO_RENAME_COLS <- function(mat, juris_names) {

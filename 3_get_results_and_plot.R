@@ -13,13 +13,14 @@ PLOT_DATES_TRUE_FORECAST(data_24_ts_forecast_start, df_preds_var, list_jur, titl
 
 #3. GET PERFORMANCE METRICS
 #i. METRIC: SLOPE-WEIGHTED AT OBSERVATIONAL/GLOBAL LEVEL
-df_slope = GET_DF_WEIGHTED_SLOPE(df_mpox_smooth, list_jur)
+df_slope = GET_DF_WEIGHTED_SLOPE(df_model_smooth, list_jur)
 list_metrics_var = GET_SLOPE_WEIGHTED_METRICS(df_slope, df_preds_var)
 list_metrics_naive = GET_SLOPE_WEIGHTED_METRICS(df_slope, df_preds_naive)
+df_global_slope = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_naive)
 
 #ii. METRICS: JURISDICTION LEVEL
 df_jur_slope_results =  GET_JUR_METRICS_MODELS_COMPARED(df_preds_var, df_preds_naive, df_slope, list_jur)
-df_global_slope = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_naive)
+
 
 
 
