@@ -38,6 +38,7 @@ Firstly load the libary (after installing it as above)
 
 ```
 library(VARLASSOMpox)
+source('libs_required.R') #source this file to load required R libraries. You made need to install certain R libraries from this file. 
 ```
 
 1. Format and smooth the data using the file: 
@@ -53,6 +54,7 @@ library(VARLASSOMpox)
 ```
 3_get_results_and_plot.R
 ```
+
 
 
 
