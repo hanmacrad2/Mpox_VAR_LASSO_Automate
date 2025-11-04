@@ -8,19 +8,30 @@ source(paste0(FOLDER, 'libs_required.R'))
 
 #DATA FOLDER 
 DATA_FOLDER <- "C:/Users/h2cra/OneDrive/Documents/UCSD/PROJECTS/Project_2_Mpox/Data/DATA_2025/"
-file_name = 'data_mpox_final_22_2025.csv'
-data_mpox = read.csv(paste0(DATA_FOLDER, file_name)) 
+file_name = 'data_mpox_final_2022_2025.csv' 
+data_mpox_raw = read.csv(paste0(DATA_FOLDER, file_name)) 
+data_mpox = data_mpox_raw
+
+#YEARS
+START_YEAR_INTEREST = 2023
+data_mpox = data_mpox %>% filter(Year >= START_YEAR_INTEREST)
+
+END_YEAR_INTEREST = 2025
+data_mpox = data_mpox %>% filter(Year < END_YEAR_INTEREST)
+
+week_golden_data = 130
+data_mpox = data_mpox %>% filter(Week_Number <= week_golden_data)
 
 #*********************************************************
 #2. DATA ORIGINAL (NEEDED FOR PLOTTING FORECASTS)
-list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
-             "SanDiego", "Washington")
+#list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
+#             "SanDiego", "Washington")
 
-START_YEAR_INTEREST = 2023
+list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
+             "SanDiego", "Washington", "NewJersey", "Colorado", "NorthCarolina")
 
 data_mpox_model = data_mpox %>% filter(Jurisdiction %in% list_jur)
 length(unique(data_mpox_model$Jurisdiction))
-data_mpox_model = data_mpox_model %>% filter(Year >= START_YEAR_INTEREST)
 
 
 #*********************************************************
@@ -58,7 +69,10 @@ data_ts_24 = GET_TS_DATA(data_model_24)
 
 #WEEK NUMBER
 WEEK_FORECAST = TRAIN_WEEK + 2
-WEEK_END = 169
+#WEEK_END = 169
+
+#WEEK_END = 135
+WEEK_END = 130
 data_24_forecast_start = data_mpox_model %>% filter(Week_Number >= WEEK_FORECAST)
 data_24_forecast_start = data_24_forecast_start %>% filter(Week_Number <= WEEK_END)
 data_24_ts_forecast_start = GET_TS_DATA(data_24_forecast_start)

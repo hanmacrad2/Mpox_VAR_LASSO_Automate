@@ -8,7 +8,7 @@ df_preds_naive = naive_estimates_two_step$df_pred_results
 
 #2. PLOT FORECASTS
 #forecast_start_date = as.Date("2024-05-25") #start of forecast 
-title = 'VAR two week-ahead Forecasts - Top 8 Jurisidictions by Case count in 2023 & 2024'
+title = 'VAR two week-ahead Forecasts - Top 11 Jurisidictions by Case count in 2023 & 2024'
 PLOT_DATES_TRUE_FORECAST(data_24_ts_forecast_start, df_preds_var, list_jur, title, n_col_plot = 3)
 
 #3. GET PERFORMANCE METRICS

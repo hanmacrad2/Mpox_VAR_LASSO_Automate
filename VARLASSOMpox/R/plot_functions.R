@@ -116,3 +116,180 @@ PLOT_DATES_TRUE_FORECAST_SD <- function(data_sd, title_plot) {
       axis.ticks.length = unit(5, "pt")
     )
 }
+
+
+#PLOT DATA
+plot_jur_data_V1 <- function(data_sd, data_other, label_other, month_label = TRUE) {
+  
+  # Ensure consistent date column names
+  if (!"date_week_start" %in% names(data_sd)) stop("data_sd must have a column named 'date_week_start'")
+  if (!"date_week_start" %in% names(data_other)) stop("data_other must have a column named 'date_week_start'")
+  
+  # Add jurisdiction labels
+  data_sd <- data_sd %>%
+    mutate(
+      date_week_start = as.Date(date_week_start),
+      Jurisdiction = "San Diego"
+    )
+  
+  data_other <- data_other %>%
+    mutate(
+      date_week_start = as.Date(date_week_start),
+      Jurisdiction = label_other
+    )
+  
+  # Combine both datasets
+  data_combined <- bind_rows(data_sd, data_other)
+  
+  # Get all unique dates for x-axis
+  date_seq <- data_combined %>%
+    distinct(date_week_start) %>%
+    arrange(date_week_start) %>%
+    pull(date_week_start)
+  
+  # Pick every 4th date to reduce clutter
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  
+  # Ensure last date is included
+  if (tail(date_seq, 1) != tail(x_breaks, 1)) {
+    x_breaks <- c(x_breaks, tail(date_seq, 1))
+  }
+  
+  if(month_label) {
+    
+    ggplot(data_combined, aes(x = date_week_start, y = Cases, color = Jurisdiction)) +
+      geom_point(size = 3, stroke = 0.5, shape = 21, fill = "white") +  # outline tweak
+      scale_color_manual(values = c(
+        "Illinois" = "#47B7D6",
+        "SanDiego" = "#A6D74E"
+      )) +
+      scale_x_date(
+        date_breaks = "1 month",
+        date_labels = "%b %y"  # e.g., "Jan 23"
+      ) +
+      theme_minimal(base_size = 14) +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.grid.minor = element_blank()
+      ) +
+      labs(
+        x = "Month",
+        y = "Cases",
+        color = "Jurisdiction"
+      )
+    
+  } else {
+    
+    ggplot(data_combined, aes(x = date_week_start, y = Cases, group = Jurisdiction)) +
+      geom_line(aes(color = Jurisdiction), size = 1.0) +
+      geom_point(
+        aes(fill = Jurisdiction),
+        shape = 21,            # circle with border
+        color = "black",       # border color
+        size = 2.8,
+        stroke = 0.8           # border thickness
+      ) +
+      scale_color_manual(
+        values = setNames(
+          c("#A6D74E", "#47B7D6"),
+          c("San Diego", label_other)
+        )
+      ) +
+      scale_fill_manual(
+        values = setNames(
+          c("#A6D74E", "#47B7D6"),
+          c("San Diego", label_other)
+        )
+      ) +
+      scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
+      labs(
+        x = "Week start date",
+        y = "Cases",
+        title = paste("Mpox weekly reported cases:", label_other, "vs San Diego county, 2023–2024")
+      ) +
+      theme_minimal(base_size = 17) +
+      theme(
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(face = "bold")
+      )
+    
+  }
+  
+}
+
+#PLOT
+plot_jur_data <- function(data_sd, data_other, label_other, colour_jur, month_label = TRUE) {
+  
+  # Ensure consistent date column names
+  if (!"date_week_start" %in% names(data_sd)) stop("data_sd must have a column named 'date_week_start'")
+  if (!"date_week_start" %in% names(data_other)) stop("data_other must have a column named 'date_week_start'")
+  
+  # Add jurisdiction labels
+  data_sd <- data_sd %>%
+    mutate(
+      date_week_start = as.Date(date_week_start),
+      Jurisdiction = "San Diego"
+    )
+  
+  data_other <- data_other %>%
+    mutate(
+      date_week_start = as.Date(date_week_start),
+      Jurisdiction = label_other
+    )
+  
+  # Combine both datasets
+  data_combined <- bind_rows(data_sd, data_other)
+  
+  # Get all unique dates for x-axis
+  date_seq <- data_combined %>%
+    distinct(date_week_start) %>%
+    arrange(date_week_start) %>%
+    pull(date_week_start)
+  
+  # Pick every 4th date to reduce clutter
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  
+  # Ensure last date is included
+  if (tail(date_seq, 1) != tail(x_breaks, 1)) {
+    x_breaks <- c(x_breaks, tail(date_seq, 1))
+  }
+  
+  # Color mapping
+  jur_colors <- setNames(c("#A6D74E", colour_jur), c("San Diego", label_other))
+  
+  # x-axis breaks / labels
+  if(month_label) {
+    x_scale <- scale_x_date(date_breaks = "1 month", date_labels = "%b %y")
+  } else {
+    x_scale <- scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y")
+  }
+  
+  # Plot
+  ggplot(data_combined, aes(x = date_week_start, y = Cases, group = Jurisdiction)) +
+    geom_line(aes(color = Jurisdiction), size = 1) +
+    geom_point(aes(fill = Jurisdiction),
+               shape = 21,
+               color = "black",
+               size = 2.8,
+               stroke = 0.8) +
+    scale_color_manual(values = jur_colors) +
+    scale_fill_manual(values = jur_colors) +
+    x_scale +
+    labs(
+      x = ifelse(month_label, "Month", "Week start date"),
+      y = "Cases",
+      title = ifelse(month_label,
+                     paste("Mpox weekly reported cases:", label_other, "vs San Diego, 2023–2024"),
+                     paste("Mpox weekly reported cases:", label_other, "vs San Diego, 2023–2024")),
+      color = "Jurisdiction",
+      fill = "Jurisdiction"
+    ) +
+    theme_minimal(base_size = 16) +
+    theme(
+      legend.position = "bottom",
+      plot.title = element_text(face = "bold"),
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
+}
+
