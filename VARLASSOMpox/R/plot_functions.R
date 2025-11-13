@@ -2,6 +2,222 @@
 #* PLOT FUNCTIONS
 #******************************
 library(patchwork)
+library(ggh4x)  # for facet_wrap2
+
+PLOT_DATES_TRUE_FORECAST <- function(data_ts, 
+                                     df_preds_var, df_preds_ar, df_preds_naive,
+                                     list_ordered_jur, title_plot, 
+                                     n_col_plot = 2,
+                                     col_var = "blue", col_ar = "green",
+                                     col_naive = "red", 
+                                     three_figures = TRUE) {
+  
+  # --- Step 1: Ensure date format ---
+  data_ts <- data_ts %>%
+    mutate(date_week_start = as.Date(date_week_start))
+  df_preds_var <- df_preds_var %>%
+    mutate(date_week_start = as.Date(date_week_start), Method = "VAR")
+  df_preds_ar <- df_preds_ar %>%
+    mutate(date_week_start = as.Date(date_week_start), Method = "AR")
+  df_preds_naive <- df_preds_naive %>%
+    mutate(date_week_start = as.Date(date_week_start), Method = "Naive")
+  
+  # --- Step 2: Format true cases ---
+  df_true_long <- data_ts %>%
+    pivot_longer(cols = -c(Week_Number, date_week_start), 
+                 names_to = "Jurisdiction", values_to = "Cases") %>%
+    mutate(Source = "True")
+  
+  # --- Step 3: Combine all predictions ---
+  df_preds_all <- bind_rows(df_preds_var, df_preds_ar, df_preds_naive) %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method) %>%
+    rename(Cases = Predicted) %>%
+    mutate(Source = "Predicted")
+  
+  # --- Step 4: Combine true + preds ---
+  df_plot <- bind_rows(df_true_long, df_preds_all) %>%
+    filter(Jurisdiction %in% list_ordered_jur) %>%
+    mutate(
+      Source = factor(Source, levels = c("True", "Predicted")),
+      Jurisdiction = factor(Jurisdiction, levels = list_ordered_jur),
+      Method = factor(Method, levels = c("VAR", "AR", "Naive"))
+    )
+  
+  # --- Step 5: Date breaks ---
+  date_seq <- df_plot %>%
+    distinct(date_week_start) %>%
+    arrange(date_week_start) %>%
+    pull(date_week_start)
+  
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  if (tail(date_seq, 1) != tail(x_breaks, 1)) {
+    x_breaks <- c(x_breaks, tail(date_seq, 1))
+  }
+  
+  # --- Step 6: Define plotting helper ---
+  plot_subset <- function(subset_jur) {
+    ggplot() +
+      geom_line(data = df_plot %>% filter(Source == "True", Jurisdiction %in% subset_jur),
+                aes(x = date_week_start, y = Cases, group = 1),
+                color = "black", size = 0.9) +
+      geom_point(data = df_plot %>% filter(Source == "True", Jurisdiction %in% subset_jur),
+                 aes(x = date_week_start, y = Cases),
+                 color = "black", size = 1.75) +
+      geom_line(data = df_plot %>% filter(Source == "Predicted", Jurisdiction %in% subset_jur),
+                aes(x = date_week_start, y = Cases, color = Method),
+                size = 0.7) +
+      geom_point(data = df_plot %>% filter(Source == "Predicted", Jurisdiction %in% subset_jur),
+                 aes(x = date_week_start, y = Cases, color = Method),
+                 size = 1.75) +
+      scale_color_manual(
+        name = "Model",
+        values = c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+      ) +
+      scale_x_date(
+        breaks = x_breaks,
+        date_labels = "%m/%d/%y"
+      ) +
+      facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", ncol = n_col_plot) +
+      labs(
+        x = "Date (week start date of reported cases)",
+        y = "Cases",
+        title = title_plot
+      ) +
+      theme_minimal(base_size = 13) +
+      theme(
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 12)
+      )
+  }
+  
+  # --- Step 7: Either single figure or multiple ---
+  if (!three_figures) {
+    return(plot_subset(list_ordered_jur))
+  } else {
+    # Split into chunks of 4
+    jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur) / 4))
+    
+    plot_list <- lapply(seq_along(jur_chunks), function(i) {
+      subset_jur <- jur_chunks[[i]]
+      
+      # Pad last subset with empty placeholders to preserve 2x2 layout
+      if (length(subset_jur) < 4) {
+        missing <- 4 - length(subset_jur)
+        placeholders <- paste0("placeholder_", seq_len(missing))
+        
+        # Add dummy rows so facet_wrap2 keeps grid size
+        df_dummy <- tibble(
+          date_week_start = as.Date(NA),
+          Week_Number = NA,
+          Jurisdiction = placeholders,
+          Cases = NA,
+          Source = "True",
+          Method = "VAR"
+        )
+        
+        df_plot <<- bind_rows(df_plot, df_dummy) %>%
+          mutate(Jurisdiction = factor(Jurisdiction, 
+                                       levels = c(levels(df_plot$Jurisdiction), placeholders)))
+        subset_jur <- c(subset_jur, placeholders)
+      }
+      
+      p <- plot_subset(subset_jur) + 
+        labs(title = paste(title_plot, "- Panel", i))
+      print(p)
+    })
+    
+    invisible(plot_list)
+  }
+}
+
+
+PLOT_DATES_TRUE_FORECAST1 <- function(data_ts, 
+                                     df_preds_var, df_preds_ar, df_preds_naive,
+                                     list_ordered_jur, title_plot, 
+                                     n_col_plot = 3,
+                                     col_var = "blue", col_ar = "green", col_naive = "red") {
+  
+  # --- Step 1: Ensure date format ---
+  data_ts <- data_ts %>%
+    mutate(date_week_start = as.Date(date_week_start))
+  df_preds_var <- df_preds_var %>%
+    mutate(date_week_start = as.Date(date_week_start), Method = "VAR")
+  df_preds_ar <- df_preds_ar %>%
+    mutate(date_week_start = as.Date(date_week_start), Method = "AR")
+  df_preds_naive <- df_preds_naive %>%
+    mutate(date_week_start = as.Date(date_week_start), Method = "Naive")
+  
+  # --- Step 2: Format true cases ---
+  df_true_long <- data_ts %>%
+    pivot_longer(cols = -c(Week_Number, date_week_start), 
+                 names_to = "Jurisdiction", values_to = "Cases") %>%
+    mutate(Source = "True")
+  
+  # --- Step 3: Combine all predictions ---
+  df_preds_all <- bind_rows(df_preds_var, df_preds_ar, df_preds_naive) %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method) %>%
+    rename(Cases = Predicted) %>%
+    mutate(Source = "Predicted")
+  
+  # --- Step 4: Combine true + preds ---
+  df_plot <- bind_rows(df_true_long, df_preds_all) %>%
+    filter(Jurisdiction %in% list_ordered_jur) %>%
+    mutate(
+      Source = factor(Source, levels = c("True", "Predicted")),
+      Jurisdiction = factor(Jurisdiction, levels = list_ordered_jur),
+      Method = factor(Method, levels = c("VAR", "AR", "Naive"))
+    )
+  
+  # --- Step 5: Date breaks (every 4th week) ---
+  date_seq <- df_plot %>%
+    distinct(date_week_start) %>%
+    arrange(date_week_start) %>%
+    pull(date_week_start)
+  
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  if (tail(date_seq, 1) != tail(x_breaks, 1)) {
+    x_breaks <- c(x_breaks, tail(date_seq, 1))
+  }
+  
+  # --- Step 6: Plot ---
+  ggplot() +
+    # True values (black)
+    geom_line(data = df_plot %>% filter(Source == "True"),
+              aes(x = date_week_start, y = Cases, group = 1),
+              color = "black", size = 0.9) +
+    geom_point(data = df_plot %>% filter(Source == "True"),
+               aes(x = date_week_start, y = Cases),
+               color = "black", size = 1.75) +
+    # Predictions (colored by Method)
+    geom_line(data = df_plot %>% filter(Source == "Predicted"),
+              aes(x = date_week_start, y = Cases, color = Method),
+              size = 0.7) +
+    geom_point(data = df_plot %>% filter(Source == "Predicted"),
+               aes(x = date_week_start, y = Cases, color = Method),
+               size = 1.75) +
+    scale_color_manual(
+      name = "Model",
+      values = c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+    ) +
+    scale_x_date(
+      breaks = x_breaks,
+      date_labels = "%m/%d/%y"
+    ) +
+    facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", ncol = n_col_plot) +
+    labs(
+      x = "Date (week start date of reported cases)",
+      y = "Cases",
+      title = title_plot
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text = element_text(size = 12)
+    )
+}
+
 
 PLOT_DATES_TRUE_FORECAST <- function(data_ts, df_preds, list_ordered_jur,
                                      title_plot, n_col_plot = 2, predicted_col = "red") {
@@ -67,23 +283,43 @@ PLOT_DATES_TRUE_FORECAST <- function(data_ts, df_preds, list_ordered_jur,
     )
 }
 
-PLOT_DATES_TRUE_FORECAST_SD <- function(data_sd, title_plot) {
+
+PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_naive,
+                                         title_plot,
+                                         col_var = "blue", col_ar = "darkgreen", col_naive = "red") {
   
-  # Ensure Date column exists as date_week_start or week_start_date (rename if needed)
-  # Assume data_sd has a column named 'date_week_start' for actual dates
+  # Standardize columns and add method labels
+  df_var <- df_preds_var %>%
+    mutate(date_week_start = as.Date(date_week_start),
+           Method = "VAR") %>%
+    dplyr::select(Week_Number, Date = date_week_start, Predicted, Actual, Method)
   
-  data_sd <- data_sd %>%
-    mutate(date_week_start = as.Date(date_week_start))
+  df_ar <- df_preds_ar %>%
+    mutate(date_week_start = as.Date(date_week_start),
+           Method = "AR") %>%
+    dplyr::select(Week_Number, Date = date_week_start, Predicted, Actual, Method)
   
-  data_sd <- data_sd %>%
-    rename(Date = date_week_start) %>%
-    dplyr::select(Week_Number, Date, Predicted, Actual) %>%
+  df_naive <- df_preds_naive %>%
+    mutate(date_week_start = as.Date(date_week_start),
+           Method = "Naive") %>%
+    dplyr::select(Week_Number, Date = date_week_start, Predicted, Actual, Method)
+  
+  # Combine all
+  df_all <- bind_rows(df_var, df_ar, df_naive)
+  
+  # Pivot to long format for ggplot
+  df_long <- df_all %>%
     pivot_longer(cols = c("Predicted", "Actual"), 
                  names_to = "Source", 
-                 values_to = "Cases")
+                 values_to = "Cases") %>%
+    mutate(Method = factor(Method, levels = c("VAR", "AR", "Naive")))
+  # df_long <- df_all %>%
+  #   pivot_longer(cols = c("Predicted", "Actual"), 
+  #                names_to = "Source", 
+  #                values_to = "Cases")
   
   # Get all unique dates in ascending order
-  date_seq <- data_sd %>%
+  date_seq <- df_long %>%
     distinct(Date) %>%
     arrange(Date) %>%
     pull(Date)
@@ -97,7 +333,70 @@ PLOT_DATES_TRUE_FORECAST_SD <- function(data_sd, title_plot) {
   }
   
   # Plot
-  ggplot(data_sd, aes(x = Date, y = Cases, color = Source)) +
+  ggplot() +
+    # Actual (single black line)
+    geom_line(data = df_long %>% filter(Source == "Actual"),
+              aes(x = Date, y = Cases, group = 1),
+              color = "black", size = 1) +
+    geom_point(data = df_long %>% filter(Source == "Actual"),
+               aes(x = Date, y = Cases),
+               color = "black", size = 3) +
+    # Predicted (colored by method)
+    geom_line(data = df_long %>% filter(Source == "Predicted"),
+              aes(x = Date, y = Cases, color = Method),
+              size = 0.9) +
+    geom_point(data = df_long %>% filter(Source == "Predicted"),
+               aes(x = Date, y = Cases, color = Method),
+               size = 2.5) +
+    scale_color_manual(
+      name = "Model",
+      values = c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+    ) +
+    scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
+    labs(x = "Date (week start date of reported cases)",
+         y = "Cases",
+         title = title_plot) +
+    theme_minimal(base_size = 16) +
+    theme(
+      legend.position = "bottom",
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.ticks.x = element_line(),
+      axis.ticks.length = unit(5, "pt")
+    )
+}
+
+
+PLOT_DATES_TRUE_FORECAST_JUR1 <- function(df_preds_jur, title_plot) {
+  
+  # Ensure Date column exists as date_week_start or week_start_date (rename if needed)
+  # Assume df_preds_jur has a column named 'date_week_start' for actual dates
+  
+  df_preds_jur <- df_preds_jur %>%
+    mutate(date_week_start = as.Date(date_week_start))
+  
+  df_preds_jur <- df_preds_jur %>%
+    rename(Date = date_week_start) %>%
+    dplyr::select(Week_Number, Date, Predicted, Actual) %>%
+    pivot_longer(cols = c("Predicted", "Actual"), 
+                 names_to = "Source", 
+                 values_to = "Cases")
+  
+  # Get all unique dates in ascending order
+  date_seq <- df_preds_jur %>%
+    distinct(Date) %>%
+    arrange(Date) %>%
+    pull(Date)
+  
+  # Pick every 4th date to reduce clutter
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  
+  # Ensure last date included
+  if (tail(date_seq, 1) != tail(x_breaks, 1)) {
+    x_breaks <- c(x_breaks, tail(date_seq, 1))
+  }
+  
+  # Plot
+  ggplot(df_preds_jur, aes(x = Date, y = Cases, color = Source)) +
     geom_line(size = 0.7) +
     geom_point(size = 3.0) +
     scale_color_manual(values = c("Actual" = "black", "Predicted" = "red")) +
