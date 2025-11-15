@@ -7,10 +7,22 @@ FOLDER = "C:/Users/h2cra/OneDrive/Documents/GitHub/Mpox_VAR_LASSO_Automate/"
 source(paste0(FOLDER, 'libs_required.R'))
 
 #DATA FOLDER 
-DATA_FOLDER <- "C:/Users/h2cra/OneDrive/Documents/UCSD/PROJECTS/Project_2_Mpox/Data/DATA_GOLDEN_CDC/"
-file_name = 'data_mpox.xlsx' 
-data_mpox = readxl::read_excel(path = paste0(DATA_FOLDER, file_name))
+DATA_FOLDER <- "C:/Users/h2cra/OneDrive/Documents/UCSD/PROJECTS/Project_2_Mpox/Data/DATA_2025/"
+file_name = 'data_mpox_final_2022_2025.csv' 
+data_mpox_raw = read.csv(paste0(DATA_FOLDER, file_name)) 
+data_mpox = data_mpox_raw
 
+data_mpox_wrong = read.csv(paste0(DATA_FOLDER, file_name)) 
+
+#YEARS
+START_YEAR_INTEREST = 2023
+data_mpox = data_mpox %>% filter(Year >= START_YEAR_INTEREST)
+
+END_YEAR_INTEREST = 2025
+data_mpox = data_mpox %>% filter(Year < END_YEAR_INTEREST)
+
+week_golden_data = 130
+data_mpox = data_mpox %>% filter(Week_Number <= week_golden_data)
 
 #*********************************************************
 #2. DATA ORIGINAL (NEEDED FOR PLOTTING FORECASTS)
@@ -20,8 +32,8 @@ list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 #list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 #             "SanDiego", "Washington", "NewJersey")
 
-list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
-             "SanDiego", "Washington", "NewJersey", "Colorado")
+#list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
+#             "SanDiego", "Washington", "NewJersey", "Colorado")
 
 #list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 #             "SanDiego", "Washington", "NewJersey", "Colorado", "NorthCarolina", "Arizona")
@@ -86,7 +98,6 @@ train_data_ts_smooth = GET_TS_DATA(train_data_smooth)
 future_data_ts_smooth = GET_TS_DATA(future_data_smooth)
 data_tot_ts_smooth = GET_TS_DATA(df_model_smooth)
 
-#PLOT 2023 & 2024 Data 
-data_ts_23_24 = data_ts %>% filter(Week_Number > 32)
+
 
 

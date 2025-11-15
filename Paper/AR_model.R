@@ -59,7 +59,7 @@ AR_model <- function(train_data_ts_jur1, future_data_ts_jur1, future_real_ts_jur
     sd_ <- attr(train_diff_scaled, "scaled:scale")
     
     #MODEL
-    ar_lasso_model <- sparseVAR(Y= train_diff_scaled, p = n_lags, selection = "cv") #, VARpen = "L1",  selection = "cv")
+    ar_lasso_model <- sparseVAR(Y= train_diff_scaled, p = n_lags, selection = "cv") #selection = "cv") #, VARpen = "L1",  selection = "cv")
     #browser()
     # 4. Step 1 forecast (t+1)
     last_obs <- as.numeric(tail(train_week_t, 1)) 
