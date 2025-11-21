@@ -865,3 +865,390 @@ GET_JUR_LABELS <- function(){
   return(jur_labels)
   
 }
+
+
+#SENSITIVITY PLOTS!
+# SENSITIVITY PLOTS!
+PLOT_SMOOTHING_SENSITIVITY <- function(df,
+                                       col_var = "blue", col_ar = "darkgreen",
+                                       col_naive = "red",
+                                       base_size = 17, title_size = 18,
+                                       legend_size = 16, axis_label_size = 16, axis_tick_size = 13,
+                                       point_size = 3, highlight_size = 5,
+                                       line_size = 1,
+                                       legend_x = 0.75, legend_y = 0.85) {
+  
+  # -----------------------------
+  # Convert to long format
+  # -----------------------------
+  df_long <- df %>%
+    pivot_longer(
+      cols = -Smoothing,
+      names_to = c("Metric", "Model"),
+      names_sep = "_",
+      values_to = "Value"
+    ) %>%
+    mutate(Model = factor(Model, levels = c("VAR", "AR", "Naive")))
+  
+  # Order x-axis
+  df_long$Smoothing <- factor(df_long$Smoothing,
+                              levels = c("No smoothing", "2", "3", "4", "5"))
+  
+  # Highlight VAR at smoothing window 4
+  highlight_rmse <- df_long %>%
+    filter(Metric == "RMSE", Model == "VAR", Smoothing == "4")
+  
+  highlight_mae <- df_long %>%
+    filter(Metric == "MAE", Model == "VAR", Smoothing == "4")
+  
+  # Colors
+  cols <- c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+  
+  # --------------------------------
+  # Helper theme with legend inside
+  # --------------------------------
+  theme_inside <- function() {
+    theme_minimal(base_size = base_size) +
+      theme(
+        legend.position = c(legend_x, legend_y),
+        legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+        legend.key = element_rect(fill = alpha("white", 0.7), color = NA),
+        legend.text = element_text(size = legend_size),
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = title_size),
+        #axis.title.x = element_text(size = axis_label_size),
+        #axis.title.y = element_text(size = axis_label_size),
+        axis.text.x = element_text(size = axis_tick_size),
+        axis.text.y = element_text(size = axis_tick_size),
+        axis.title.x = element_text(size = axis_label_size,
+                                    margin = margin(t = 15)),  # space above x-axis label
+        axis.title.y = element_text(size = axis_label_size,
+                                    margin = margin(r = 15))   # space to the right of y-axis label
+      )
+  }
+  
+  # -----------------------------
+  # RMSE PLOT
+  # -----------------------------
+  p_rmse <- df_long %>%
+    filter(Metric == "RMSE") %>%
+    ggplot(aes(x = Smoothing, y = Value,
+               color = Model, shape = Model, group = Model)) +
+    geom_line(size = line_size) +
+    geom_point(size = point_size) +
+    geom_point(data = highlight_rmse,
+               aes(x = Smoothing, y = Value),
+               inherit.aes = FALSE,
+               color = "green", shape = 1, stroke = 1.5,
+               size = highlight_size) +
+    scale_color_manual(values = cols) +
+    labs(
+      x = "Average moving window (weeks)",
+      y = "Positive slope-weighted RMSE",
+      title = 'Sensitivity Analysis - Slope-weighted RMSE'
+    ) +
+    theme_inside()
+  
+  # -----------------------------
+  # MAE PLOT
+  # -----------------------------
+  p_mae <- df_long %>%
+    filter(Metric == "MAE") %>%
+    ggplot(aes(x = Smoothing, y = Value,
+               color = Model, shape = Model, group = Model)) +
+    geom_line(size = line_size) +
+    geom_point(size = point_size) +
+    geom_point(data = highlight_mae,
+               aes(x = Smoothing, y = Value),
+               inherit.aes = FALSE,
+               color = "green", shape = 1, stroke = 1.5,
+               size = highlight_size) +
+    scale_color_manual(values = cols) +
+    labs(
+      x = "Average moving window (weeks)",
+      y = "Positive slope-weighted MAE",
+      title = 'Sensitivity Analysis - Slope-weighted MAE'
+    ) +
+    theme_inside()
+  
+  return(list(RMSE = p_rmse, MAE = p_mae))
+}
+
+# -----------------------------
+# SENSITIVITY PLOTS FUNCTION
+# -----------------------------
+PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
+                                       col_var = "blue", col_ar = "darkgreen",
+                                       col_naive = "red",
+                                       base_size = 17, title_size = 18,
+                                       legend_size = 16, axis_label_size = 16, axis_tick_size = 13,
+                                       point_size = 3, highlight_size = 5,
+                                       line_size = 1,
+                                       legend_x = 0.75, legend_y = 0.85) {
+  
+  # -----------------------------
+  # Convert to long format
+  # -----------------------------
+  df_long <- df %>%
+    pivot_longer(
+      cols = -Smoothing,
+      names_to = c("Metric", "Model"),
+      names_sep = "_",
+      values_to = "Value"
+    ) %>%
+    mutate(Model = factor(Model, levels = c("VAR", "AR", "Naive")))
+  
+  # Order x-axis
+  df_long$Smoothing <- factor(df_long$Smoothing,
+                              levels = c("No smoothing", "2", "3", "4", "5"))
+  
+  # Highlight VAR at smoothing window 4
+  highlight_rmse <- df_long %>%
+    filter(Metric == "RMSE", Model == "VAR", Smoothing == "4")
+  
+  highlight_mae <- df_long %>%
+    filter(Metric == "MAE", Model == "VAR", Smoothing == "4")
+  
+  # Colors
+  cols <- c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+  
+  # --------------------------------
+  # Helper theme with legend inside
+  # --------------------------------
+  theme_inside <- function() {
+    theme_minimal(base_size = base_size) +
+      theme(
+        legend.position = c(legend_x, legend_y),
+        legend.background = element_rect(fill = alpha("white", 0.7), color = NA),
+        legend.key = element_rect(fill = alpha("white", 0.7), color = NA),
+        legend.text = element_text(size = legend_size),
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = title_size),
+        axis.title.x = element_text(size = axis_label_size,
+                                    margin = margin(t = 15)),  # space above x-axis label
+        axis.title.y = element_text(size = axis_label_size,
+                                    margin = margin(r = 15)),  # space to the right of y-axis label
+        axis.text.x = element_text(size = axis_tick_size),
+        axis.text.y = element_text(size = axis_tick_size)
+      )
+  }
+  
+  # -----------------------------
+  # RMSE PLOT
+  # -----------------------------
+  p_rmse <- df_long %>%
+    filter(Metric == "RMSE") %>%
+    ggplot(aes(x = Smoothing, y = Value,
+               color = Model, shape = Model, group = Model)) +
+    geom_line(size = line_size) +
+    geom_point(size = point_size) +
+    geom_point(data = highlight_rmse,
+               aes(x = Smoothing, y = Value),
+               inherit.aes = FALSE,
+               color = "green", shape = 1, stroke = 1.5,
+               size = highlight_size) +
+    scale_color_manual(values = cols) +
+    scale_y_continuous(breaks = c(1.75, 2, 2.25, 2.5, 2.75, 3, 3.25)) +  # <-- set RMSE y-axis ticks
+    labs(
+      x = "Average moving window (weeks)",
+      y = "Positive slope-weighted RMSE",
+      title = 'A). Sensitivity Analysis - Slope-weighted RMSE'
+    ) +
+    theme_inside() +
+    coord_cartesian(xlim = c(1, 5), ylim = c(1.75, 3.25))
+  
+  # -----------------------------
+  # MAE PLOT
+  # -----------------------------
+  p_mae <- df_long %>%
+    filter(Metric == "MAE") %>%
+    ggplot(aes(x = Smoothing, y = Value,
+               color = Model, shape = Model, group = Model)) +
+    geom_line(size = line_size) +
+    geom_point(size = point_size) +
+    geom_point(data = highlight_mae,
+               aes(x = Smoothing, y = Value),
+               inherit.aes = FALSE,
+               color = "green", shape = 1, stroke = 1.5,
+               size = highlight_size) +
+    scale_color_manual(values = cols) +
+    scale_y_continuous(breaks = c(1.25, 1.5, 1.75, 2, 2.25, 2.5)) +  # <-- set MAE y-axis ticks
+    labs(
+      x = "Average moving window (weeks)",
+      y = "Positive slope-weighted MAE",
+      title = 'B). Sensitivity Analysis - Slope-weighted MAE'
+    ) +
+    theme_inside() +
+    theme(legend.position = "none") +   # hide second legend 
+    coord_cartesian(xlim = c(1, 5), ylim = c(1.25, 2.5))# hide second legend
+  
+  # -----------------------------
+  # Combine plots into 2-row, 1-column layout
+  # -----------------------------
+  combined_plot <- (p_rmse + theme(plot.margin = margin(b = 20))) /
+    (p_mae  + theme(plot.margin = margin(t = 20))) +
+    plot_layout(ncol = 1)
+  
+  #combined_plot <- p_rmse / p_mae + plot_layout(ncol = 1, heights = c(1, 1))
+  
+  print(combined_plot)
+  #return(combined_plot)
+}
+
+#   
+#   # -----------------------------
+#   # RMSE PLOT
+#   # -----------------------------
+#   p_rmse <- df_long %>%
+#     filter(Metric == "RMSE") %>%
+#     ggplot(aes(x = Smoothing, y = Value,
+#                color = Model, shape = Model, group = Model)) +
+#     geom_line(size = line_size) +
+#     geom_point(size = point_size) +
+#     geom_point(data = highlight_rmse,
+#                aes(x = Smoothing, y = Value),
+#                inherit.aes = FALSE,
+#                color = "green", shape = 1, stroke = 1.5,
+#                size = highlight_size) +
+#     scale_color_manual(values = cols) +
+#     labs(
+#       x = "Average moving window (weeks)",
+#       y = "Positive slope-weighted RMSE",
+#       title = 'A).   Sensitivity Analysis - Slope-weighted RMSE'
+#     ) +
+#     theme_inside() +
+#     coord_cartesian(xlim = c(1, 5), ylim = c(1.75, 3.25))
+#   
+#   # -----------------------------
+#   # MAE PLOT
+#   # -----------------------------
+#   p_mae <- df_long %>%
+#     filter(Metric == "MAE") %>%
+#     ggplot(aes(x = Smoothing, y = Value,
+#                color = Model, shape = Model, group = Model)) +
+#     geom_line(size = line_size) +
+#     geom_point(size = point_size) +
+#     geom_point(data = highlight_mae,
+#                aes(x = Smoothing, y = Value),
+#                inherit.aes = FALSE,
+#                color = "green", shape = 1, stroke = 1.5,
+#                size = highlight_size) +
+#     scale_color_manual(values = cols) +
+#     labs(
+#       x = "Average moving window (weeks)",
+#       y = "Positive slope-weighted MAE",
+#       title = 'B).   Sensitivity Analysis - Slope-weighted MAE'
+#     ) +
+#     theme_inside() #+
+#    # theme(legend.position = "none")  +
+#    # coord_cartesian(xlim = c(1, 5), ylim = c(1, 3))# hide second legend
+#   
+#   # -----------------------------
+#   # Combine plots into 2-row, 1-column layout
+#   # -----------------------------
+#   combined_plot <- (p_rmse + theme(plot.margin = margin(b = 20))) /
+#     (p_mae  + theme(plot.margin = margin(t = 20))) +
+#     plot_layout(ncol = 1)
+#   
+#   #combined_plot <- p_rmse / p_mae + plot_layout(ncol = 1, heights = c(1, 1))
+#   
+#   print(combined_plot)
+#   #return(combined_plot)
+# }
+
+
+
+# PLOT_SMOOTHING_SENSITIVITY <- function(df,
+#                                        col_var = "blue", col_ar = "darkgreen",
+#                                        col_naive = "red",
+#                                        base_size = 17, title_size = 22,
+#                                        legend_size = 16, axis_text_size = 12,
+#                                        point_size = 3,highlight_size = 5,
+#                                        line_size = 1) {
+#   
+#   
+#   # -----------------------------
+#   # Convert to long format
+#   # -----------------------------
+#   df_long <- df %>%
+#     pivot_longer(
+#       cols = -Smoothing,
+#       names_to = c("Metric", "Model"),
+#       names_sep = "_",
+#       values_to = "Value"
+#     ) %>%
+#     mutate(Model = factor(Model, levels = c("VAR", "AR", "Naive")))
+#   
+#   # Order x-axis
+#   df_long$Smoothing <- factor(df_long$Smoothing,
+#                               levels = c("No smoothing", "2", "3", "4", "5"))
+#   
+#   # Highlight VAR at smoothing window 4
+#   highlight_rmse <- df_long %>%
+#     filter(Metric == "RMSE", Model == "VAR", Smoothing == "4")
+#   
+#   highlight_mae <- df_long %>%
+#     filter(Metric == "MAE", Model == "VAR", Smoothing == "4")
+#   
+#   # Colors
+#   cols <- c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+#   
+#   # -----------------------------
+#   # RMSE PLOT
+#   # -----------------------------
+#   p_rmse <- df_long %>%
+#     filter(Metric == "RMSE") %>%
+#     ggplot(aes(x = Smoothing, y = Value,
+#                color = Model, shape = Model, group = Model)) +
+#     geom_line(size = line_size) +
+#     geom_point(size = point_size) +
+#     geom_point(data = highlight_rmse,
+#                aes(x = Smoothing, y = Value),
+#                inherit.aes = FALSE,
+#                color = "green", shape = 1, stroke = 1.5,
+#                size = highlight_size) +
+#     scale_color_manual(values = cols) +
+#     labs(
+#       x = "Average moving window (weeks)",
+#       y = "Positive slope-weighted RMSE",
+#       title = 'Sensitivity Analysis - using Slope-weighted RMSE'
+#     ) +
+#     theme_minimal(base_size = base_size) +
+#     theme(
+#       legend.position = "top",
+#       axis.text.x = element_text(size = axis_text_size),
+#       legend.text = element_text(size = legend_size),
+#       legend.title = element_blank()
+#     )
+#   
+#   # -----------------------------
+#   # MAE PLOT
+#   # -----------------------------
+#   p_mae <- df_long %>%
+#     filter(Metric == "MAE") %>%
+#     ggplot(aes(x = Smoothing, y = Value,
+#                color = Model, shape = Model, group = Model)) +
+#     geom_line(size = line_size) +
+#     geom_point(size = point_size) +
+#     geom_point(data = highlight_mae,
+#                aes(x = Smoothing, y = Value),
+#                inherit.aes = FALSE,
+#                color = "green", shape = 1, stroke = 1.5,
+#                size = highlight_size) +
+#     scale_color_manual(values = cols) +
+#     labs(
+#       x = "Average moving window (weeks)",
+#       y = "Positive slope-weighted MAE",
+#       title = 'Sensitivity Analysis - using Slope-weighted MAE'
+#     ) +
+#     theme_minimal(base_size = base_size) +
+#     theme(
+#       legend.position = "top",
+#       axis.text.x = element_text(size = axis_text_size),
+#       legend.text = element_text(size = legend_size),
+#       legend.title = element_blank()
+#     )
+#   
+#   return(list(RMSE = p_rmse, MAE = p_mae))
+# }
+

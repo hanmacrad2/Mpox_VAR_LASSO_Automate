@@ -19,17 +19,16 @@ list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 
 data_mpox_model = data_mpox %>% filter(Jurisdiction %in% list_jur)
 length(unique(data_mpox_model$Jurisdiction))
-
+data_mpox_model = data_mpox_model %>% filter(Year >= START_YEAR_INTEREST)
 
 #*********************************************************
 #3.FORMAT DATA FOR MODEL
-WINDOW_SIZE = 5
+WINDOW_SIZE = 0
 df_smooth = GET_SMOOTH_DATA(data_mpox, ROLL_WINDOW = WINDOW_SIZE)
 
 #*FILTER PERIOD & JURISDICTIONS OF INTEREST
 df_model_smooth = df_smooth %>% filter(Jurisdiction %in% list_jur)
 df_model_smooth = df_model_smooth %>% filter(Year >= START_YEAR_INTEREST)
-
 
 #**********************************************************
 #* 4. TRAIN TEST SPLIT FOR MODEL FITTING

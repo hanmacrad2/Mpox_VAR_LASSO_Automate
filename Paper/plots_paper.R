@@ -2,6 +2,33 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 
+
+#PLOT SENSITIVITY
+df_st <- data.frame(
+  Smoothing = c("No smoothing", "2", "3", "4", "5"),
+  RMSE_VAR = c(3.0, 3.05, 3.0, 1.75, 2.2),
+  RMSE_AR = c(2.9, 3.2, 3.1, 2.0, 2.3),
+  RMSE_Naive = c(3.0, 3.1, 3.0, 2.11, 2.5),
+  MAE_VAR = c(2.4, 2.5, 2.3, 1.4, 1.6),
+  MAE_AR = c(2.3, 2.5, 2.3, 1.55, 1.8),
+  MAE_Naive = c(2.50, 2.40, 2.3, 1.65, 1.87)
+)
+
+#PLOT X2
+PLOT_SMOOTHING_SENSITIVITY_x2(df_st)
+
+
+#PLOT SENSITIVITY
+plots_sens <- PLOT_SMOOTHING_SENSITIVITY(df_st)
+
+#RMSE
+plots_sens$RMSE
+#MAE
+plots_sens$MAE
+
+
+
+#******************
 df <- tribble(
   ~Jurisdiction, ~VAR_RMSE, ~Naive_RMSE, ~Improve_RMSE, ~VAR_MAPE, ~Naive_MAPE, ~Improve_MAPE, ~VAR_Bias, ~Naive_Bias, ~Improve_Bias,
   "New York City", 1.30, 1.74, 25.57, 1.13, 1.54, 26.83,  0.28, -1.22, 122.86,
@@ -261,7 +288,8 @@ p_mae <- df_long %>%
 p_rmse + p_mae +
   plot_annotation(tag_levels = 'A')
 
-#*****
+
+#*************************************
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -270,11 +298,21 @@ library(patchwork)
 # Create data
 df <- data.frame(
   Smoothing = c("No smoothing", "2", "3", "4", "5"),
-  RMSE_VAR = c(4.85, 3.80, 3.00, 1.84, 2.00),
-  RMSE_Naive = c(3.29, 3.10, 2.90, 2.08, 2.34),
-  MAE_VAR = c(2.90, 2.82, 2.35, 1.33, 1.52),
-  MAE_Naive = c(2.50, 2.40, 2.23, 1.39, 1.87)
+  RMSE_VAR = c(2.9, 3.9, 3.0, 1.75, 2.2),
+  RMSE_AR = c(2.8, 3.2, 3.1, 2.0, 2.3),
+  RMSE_Naive = c(3.0, 3.1, 3.0, 2.11, 2.5),
+  MAE_VAR = c(2.4, 2.9, 2.3, 1.4, 1.6),
+  MAE_AR = c(2.3, 2.5, 2.3, 1.5, 1.8),
+  MAE_Naive = c(2.50, 2.40, 2.3, 1.65, 1.87)
 )
+
+# df <- data.frame(
+#   Smoothing = c("No smoothing", "2", "3", "4", "5"),
+#   RMSE_VAR = c(4.85, 3.80, 3.00, 1.84, 2.00),
+#   RMSE_Naive = c(3.29, 3.10, 2.90, 2.08, 2.34),
+#   MAE_VAR = c(2.90, 2.82, 2.35, 1.33, 1.52),
+#   MAE_Naive = c(2.50, 2.40, 2.23, 1.39, 1.87)
+# )
 
 # Convert to long format
 df_long <- df %>%
@@ -345,13 +383,24 @@ library(patchwork)
 # -----------------------------
 # Create data
 # -----------------------------
+
 df <- data.frame(
   Smoothing = c("No smoothing", "2", "3", "4", "5"),
-  RMSE_VAR = c(4.85, 3.80, 3.00, 1.84, 2.00),
-  RMSE_Naive = c(3.29, 3.10, 2.90, 2.08, 2.34),
-  MAE_VAR = c(2.90, 2.82, 2.35, 1.33, 1.52),
-  MAE_Naive = c(2.50, 2.40, 2.23, 1.39, 1.87)
+  RMSE_VAR = c(2.9, 3.9, 3.0, 1.75, 2.2),
+  RMSE_AR = c(2.8, 3.2, 3.1, 2.0, 2.3),
+  RMSE_Naive = c(3.0, 3.1, 3.0, 2.11, 2.5),
+  MAE_VAR = c(2.4, 2.9, 2.3, 1.4, 1.6),
+  MAE_AR = c(2.3, 2.5, 2.3, 1.5, 1.8),
+  MAE_Naive = c(2.50, 2.40, 2.3, 1.65, 1.87)
 )
+
+# df <- data.frame(
+#   Smoothing = c("No smoothing", "2", "3", "4", "5"),
+#   RMSE_VAR = c(4.85, 3.80, 3.00, 1.84, 2.00),
+#   RMSE_Naive = c(3.29, 3.10, 2.90, 2.08, 2.34),
+#   MAE_VAR = c(2.90, 2.82, 2.35, 1.33, 1.52),
+#   MAE_Naive = c(2.50, 2.40, 2.23, 1.39, 1.87)
+# )
 
 # -----------------------------
 # Convert to long format
@@ -425,3 +474,108 @@ p_mae <- df_long %>%
 # Combine plots side by side
 # -----------------------------
 p_rmse + p_mae + plot_annotation(tag_levels = 'A')
+
+
+#***********************************************
+#SENSITIVITY ANALYSIS WITH VAR, AR, NAIVE
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+
+# -----------------------------
+# Create data
+# -----------------------------
+
+df <- data.frame(
+  Smoothing = c("No smoothing", "2", "3", "4", "5"),
+  RMSE_VAR = c(2.9, 3.9, 3.0, 1.75, 2.2),
+  RMSE_AR = c(2.8, 3.2, 3.1, 2.0, 2.3),
+  RMSE_Naive = c(3.0, 3.1, 3.0, 2.11, 2.5),
+  MAE_VAR = c(2.4, 2.9, 2.3, 1.4, 1.6),
+  MAE_AR = c(2.3, 2.5, 2.3, 1.5, 1.8),
+  MAE_Naive = c(2.50, 2.40, 2.3, 1.65, 1.87)
+)
+
+# -----------------------------
+# Convert to long format
+# -----------------------------
+df_long <- df %>%
+  pivot_longer(
+    cols = -Smoothing,
+    names_to = c("Metric", "Model"),
+    names_sep = "_",
+    values_to = "Value"
+  ) %>%
+  mutate(Model = factor(Model, levels = c("VAR", "AR", "Naive")))
+
+# Order x-axis
+df_long$Smoothing <- factor(df_long$Smoothing,
+                            levels = c("No smoothing", "2", "3", "4", "5"))
+
+# -----------------------------
+# Highlight VAR at window 4
+# -----------------------------
+highlight_rmse <- df_long %>% 
+  filter(Metric == "RMSE", Model == "VAR", Smoothing == "4")
+
+highlight_mae  <- df_long %>%
+  filter(Metric == "MAE", Model == "VAR", Smoothing == "4")
+
+# -----------------------------
+# Custom colors
+# -----------------------------
+cols <- c("VAR" = "blue", "AR" = "darkgreen", "Naive" = "red")
+
+# -----------------------------
+# Plot RMSE
+# -----------------------------
+p_rmse <- df_long %>%
+  filter(Metric == "RMSE") %>%
+  ggplot(aes(x = Smoothing, y = Value, 
+             group = Model, color = Model, shape = Model)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  geom_point(data = highlight_rmse, 
+             aes(x = Smoothing, y = Value),
+             color = "green", size = 5, shape = 1, stroke = 1.5,
+             inherit.aes = FALSE) +
+  labs(y = "Positive slope-weighted RMSE", 
+       x = "Average moving window (weeks)") +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(size = 11),
+    legend.text = element_text(size = 14),
+    legend.title = element_blank()
+  ) +
+  scale_color_manual(values = cols)
+
+# -----------------------------
+# Plot MAE
+# -----------------------------
+p_mae <- df_long %>%
+  filter(Metric == "MAE") %>%
+  ggplot(aes(x = Smoothing, y = Value, 
+             group = Model, color = Model, shape = Model)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  geom_point(data = highlight_mae, 
+             aes(x = Smoothing, y = Value),
+             color = "green", size = 5, shape = 1, stroke = 1.5,
+             inherit.aes = FALSE) +
+  labs(y = "Positive slope-weighted MAE", 
+       x = "Average moving window (weeks)") +
+  theme_minimal(base_size = 13) +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(size = 11)
+  ) +
+  scale_color_manual(values = cols)
+
+# -----------------------------
+# Combine plots side by side
+# -----------------------------
+p_rmse + p_mae + plot_annotation(tag_levels = 'A')
+

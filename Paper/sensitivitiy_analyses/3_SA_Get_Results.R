@@ -16,6 +16,21 @@ df_global_slope_window5 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var,
 #AR VS VAR
 df_global_slope2_window5 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_ar)
 
+#***************
+#NO SMOOTHING
+#1. GET FORECASTS
+
+#df_preds_var_ns, df_preds_naive_ns, df_preds_ar_ns
+
+#NAIVE VS VAR
+df_slope_ns = GET_DF_WEIGHTED_SLOPE(data_mpox_model, list_jur)
+
+df_global_slope_window_ns = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope_ns, df_preds_var_ns, df_preds_naive_ns)
+
+#AR VS VAR
+df_global_slope_window_ns2 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope_ns, df_preds_var_ns, df_preds_ar_ns)
+
+
 
 #3. GET PERFORMANCE METRICS
 # list_metrics_var = GET_SLOPE_WEIGHTED_METRICS(df_slope, df_preds_var)
