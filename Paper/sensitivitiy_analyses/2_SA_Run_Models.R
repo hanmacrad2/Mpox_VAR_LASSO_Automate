@@ -28,6 +28,8 @@ df_preds_naive = naive_estimates_two_step$df_pred_results
 df_preds_ar <- AR_model_jurs(train_data_ts_smooth, future_data_ts_smooth,
                              future_data_ts, list_jur, n_step_ahead = 2)
 
+
+
 #********************************************
 #* NO SMOOTHING
 

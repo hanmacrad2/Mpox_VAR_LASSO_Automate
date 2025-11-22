@@ -23,7 +23,7 @@ data_mpox_model = data_mpox_model %>% filter(Year >= START_YEAR_INTEREST)
 
 #*********************************************************
 #3.FORMAT DATA FOR MODEL
-WINDOW_SIZE = 0
+WINDOW_SIZE = 2
 df_smooth = GET_SMOOTH_DATA(data_mpox, ROLL_WINDOW = WINDOW_SIZE)
 
 #*FILTER PERIOD & JURISDICTIONS OF INTEREST

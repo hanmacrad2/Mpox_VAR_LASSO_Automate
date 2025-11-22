@@ -11,10 +11,10 @@ df_preds_ar
 
 #NAIVE VS VAR
 df_slope = GET_DF_WEIGHTED_SLOPE(df_model_smooth, list_jur)
-df_global_slope_window5 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_naive)
+df_global_slope_window2 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_naive)
 
 #AR VS VAR
-df_global_slope2_window5 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_ar)
+df_global_slope2_window2 = GET_SLOPE_WEIGHTED_IMPROVEMENT(df_slope, df_preds_var, df_preds_ar)
 
 #***************
 #NO SMOOTHING

@@ -3,13 +3,54 @@ library(dplyr)
 library(tidyr)
 
 
+#**************************
+#* PLOT GLOBAL RESULTS
+
+# ---- Your data ----
+df_global_results <- data.frame(
+  Metric = c("Slope-weighted RMSE", "Slope-weighted MAE", "Slope-weighted Bias"),
+  VAR_Lasso = c(1.75, 1.42, -0.19),
+  AR_Lasso  = c(2.00, 1.52, -0.56),
+  Naive     = c(2.11, 1.64, -0.80),
+  ImproveVA = c(12, 7, 66),
+  ImproveVN = c(16, 13, 76)
+)
+
+#PLOT
+PLOT_GLOBAL_METRICS(df_global_results)
+
+
+#**************************
+#* PLOT JUR RESULTS
+df_jurisdiction <- data.frame(
+  Jurisdiction = c("NYC","Texas","LA","Florida","Illinois","Georgia","San Diego","Washington"),
+  VAR_RMSE = c(1.5,2.1,1.9,1.8,2.1,1.1,1.2,1.0),
+  AR_RMSE  = c(1.6,2.2,2.6,1.6,2.6,1.0,1.3,1.8),
+  Naive_RMSE = c(2.1,2.3,2.7,1.7,2.6,1.2,1.5,1.8),
+  ImproveVA_RMSE = c(6,4,27,-14,19,-8,5,44),
+  ImproveVN_RMSE = c(26,7,28,-11,18,8,14,46),
+  VAR_MAE = c(1.3,1.8,1.7,1.5,1.8,0.7,1.0,0.7),
+  AR_MAE  = c(1.3,1.8,2.2,1.3,2.1,0.9,1.0,1.1),
+  Naive_MAE = c(1.7,1.9,2.2,1.3,2.0,1.0,1.1,1.1),
+  ImproveVA_MAE = c(0,0,24,-13,17,13,0,35),
+  ImproveVN_MAE = c(25,3,24,-13,14,25,5,40)
+)
+
+PLOT_JURISDICTION_METRICS(df_jurisdiction, axis_label_size = 13)
+
+
+
+#**************************
+#* PLOT GLOBAL RESUL
+#* 
+
 #PLOT SENSITIVITY
 df_st <- data.frame(
   Smoothing = c("No smoothing", "2", "3", "4", "5"),
-  RMSE_VAR = c(3.0, 3.05, 3.0, 1.75, 2.2),
+  RMSE_VAR = c(3.0, 3.05, 3.0, 1.75, 1.95),
   RMSE_AR = c(2.9, 3.2, 3.1, 2.0, 2.3),
   RMSE_Naive = c(3.0, 3.1, 3.0, 2.11, 2.5),
-  MAE_VAR = c(2.4, 2.5, 2.3, 1.4, 1.6),
+  MAE_VAR = c(2.4, 2.5, 2.3, 1.4, 1.55),
   MAE_AR = c(2.3, 2.5, 2.3, 1.55, 1.8),
   MAE_Naive = c(2.50, 2.40, 2.3, 1.65, 1.87)
 )
