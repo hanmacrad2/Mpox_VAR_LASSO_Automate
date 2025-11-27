@@ -41,7 +41,7 @@ df_jur_slope_results2 =  GET_JUR_METRICS_MODELS_COMPARED(df_preds_var, df_preds_
 
 
 #FORECASTS - SAN DIEGO
-title_plot = 'San Diego County forecasts January-November 2024 using the VAR, AR & naive models'
+title_plot = 'San Diego County forecasts January- November 2024 using the VAR-Lasso, AR-Lasso & naive models'
 df_preds_var_sd = df_preds_var %>% filter(Jurisdiction == 'SanDiego')
 df_preds_ar_sd = df_preds_ar %>% filter(Jurisdiction == 'SanDiego')
 df_preds_naive_sd = df_preds_naive %>% filter(Jurisdiction == 'SanDiego')

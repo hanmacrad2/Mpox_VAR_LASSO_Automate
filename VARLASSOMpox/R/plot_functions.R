@@ -434,12 +434,12 @@ PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_nai
   # Standardize columns and add method labels
   df_var <- df_preds_var %>%
     mutate(date_week_start = as.Date(date_week_start),
-           Method = "VAR") %>%
+           Method = "VAR-Lasso") %>%
     dplyr::select(Week_Number, Date = date_week_start, Predicted, Actual, Method)
   
   df_ar <- df_preds_ar %>%
     mutate(date_week_start = as.Date(date_week_start),
-           Method = "AR") %>%
+           Method = "AR-Lasso") %>%
     dplyr::select(Week_Number, Date = date_week_start, Predicted, Actual, Method)
   
   df_naive <- df_preds_naive %>%
@@ -455,7 +455,7 @@ PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_nai
     pivot_longer(cols = c("Predicted", "Actual"), 
                  names_to = "Source", 
                  values_to = "Cases") %>%
-    mutate(Method = factor(Method, levels = c("VAR", "AR", "Naive")))
+    mutate(Method = factor(Method, levels = c("VAR-Lasso", "AR-Lasso", "Naive"))) #c("VAR", "AR", "Naive")))
   # df_long <- df_all %>%
   #   pivot_longer(cols = c("Predicted", "Actual"), 
   #                names_to = "Source", 
@@ -493,19 +493,32 @@ PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_nai
                size = 2.5) +
     scale_color_manual(
       name = "Model",
-      values = c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
+      values = c("VAR-Lasso" = col_var, "AR-Lasso" = col_ar, "Naive" = col_naive)
     ) +
     scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
     labs(x = "Date (week start date of reported cases)",
          y = "Cases",
          title = title_plot) +
-    theme_minimal(base_size = 16) +
+    theme_minimal(base_size = 17) +
     theme(
+      plot.title = element_text(size = 22, hjust = 0.5),
       legend.position = "bottom",
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      axis.ticks.x = element_line(),
-      axis.ticks.length = unit(5, "pt")
+      legend.text = element_text(size = 18),
+      legend.title = element_text(size = 16),
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 16),
+      axis.text.y = element_text(size = 16),
+      axis.title.y = element_text(size = 18),
+      strip.text = element_text(size = 19),
+      legend.key.size = unit(1.2, "lines"),
+      legend.key.width = unit(2, "cm"),
+      legend.key.height = unit(0.8, "cm")
     )
+    # theme(
+    #   legend.position = "bottom",
+    #   axis.text.x = element_text(angle = 45, hjust = 1),
+    #   axis.ticks.x = element_line(),
+    #   axis.ticks.length = unit(5, "pt")
+    # )
 }
 
 
@@ -1055,7 +1068,7 @@ PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
       title = 'A). Sensitivity Analysis - Slope-weighted RMSE'
     ) +
     theme_inside() +
-    coord_cartesian(xlim = c(1, 5), ylim = c(1.75, 3.25))
+    coord_cartesian(ylim = c(1.75, 3.25)) #xlim = c(1, 5), 
   
   # -----------------------------
   # MAE PLOT
@@ -1080,7 +1093,7 @@ PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
     ) +
     theme_inside() +
     theme(legend.position = "none") +   # hide second legend 
-    coord_cartesian(xlim = c(1, 5), ylim = c(1.25, 2.5))# hide second legend
+    coord_cartesian(ylim = c(1.25, 2.5))# hide second legend xlim = c(1, 5), 
   
   # -----------------------------
   # Combine plots into 2-row, 1-column layout

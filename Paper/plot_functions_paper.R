@@ -82,6 +82,68 @@ PLOT_GLOBAL_METRICS <- function(df) {
   patchwork::wrap_plots(p_rmse, p_mae, p_bias, ncol = 3)
 }
 
+#***********************
+#* PLOT_GLOBAL_IMPROVEMENTS
+# ---- Define plotting function ----
+PLOT_GLOBAL_IMPROVEMENTS <- function(df) {
+  
+  # Rename columns
+  df <- df %>%
+    rename(
+      `% Improve VAR-AR` = ImproveVA,
+      `% Improve VAR-Naive` = ImproveVN
+    )
+  
+  # Pivot to long format
+  df_long <- df %>%
+    pivot_longer(
+      cols = c(`% Improve VAR-AR`, `% Improve VAR-Naive`),
+      names_to = "Model",
+      values_to = "Value"
+    )
+  
+  # Factor order
+  df_long$Model <- factor(
+    df_long$Model,
+    levels = c("% Improve VAR-AR", "% Improve VAR-Naive")
+  )
+  
+  # Colors
+  fill_colors <- c(
+    "% Improve VAR-AR" = alpha("darkgreen", 0.4),
+    "% Improve VAR-Naive" = alpha("red", 0.4)
+  )
+  line_colors <- c(
+    "% Improve VAR-AR" = "darkgreen",
+    "% Improve VAR-Naive" = "red"
+  )
+  
+  # Plot builder
+  make_plot <- function(metric_name) {
+    df_sub <- df_long %>% filter(Metric == metric_name)
+    
+    ggplot(df_sub, aes(x = Model, y = Value, fill = Model, color = Model)) +
+      geom_col(width = 0.7, linewidth = 1.1) +
+      scale_fill_manual(values = fill_colors) +
+      scale_color_manual(values = line_colors) +
+      labs(title = metric_name, x = NULL, y = "% Improvement") +
+      theme_bw(base_size = 14) +
+      theme(
+        axis.text.x = element_text(size = 13, angle = 30, hjust = 1),
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5, size = 15, face = "bold")
+      ) +
+      scale_y_continuous(limits = c(0, max(df_sub$Value) * 1.2),
+                         breaks = scales::pretty_breaks(n = 4))
+  }
+  
+  p_rmse <- make_plot("Slope-weighted RMSE")
+  p_mae  <- make_plot("Slope-weighted MAE")
+  p_bias <- make_plot("Slope-weighted Bias")
+  
+  patchwork::wrap_plots(p_rmse, p_mae, p_bias, ncol = 3)
+}
+
 
 PLOT_JURISDICTION_METRICS <- function(df, alpha_value = 0.3, axis_tick_size = 12,
                                       axis_label_size = 14) {

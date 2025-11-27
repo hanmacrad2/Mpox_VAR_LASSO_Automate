@@ -19,6 +19,15 @@ df_global_results <- data.frame(
 #PLOT
 PLOT_GLOBAL_METRICS(df_global_results)
 
+#
+df_global_improve <- data.frame(
+  Metric = c("Slope-weighted RMSE", "Slope-weighted MAE", "Slope-weighted Bias"),
+  ImproveVA = c(12, 7, 66),
+  ImproveVN = c(16, 13, 76)
+)
+
+PLOT_GLOBAL_IMPROVEMENTS(df_global_improve)
+
 
 #**************************
 #* PLOT JUR RESULTS

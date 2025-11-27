@@ -20,8 +20,8 @@ list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 #list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 #             "SanDiego", "Washington", "NewJersey")
 
-list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
-             "SanDiego", "Washington", "NewJersey", "Colorado")
+# list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
+#              "SanDiego", "Washington", "NewJersey", "Colorado")
 
 #list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
 #             "SanDiego", "Washington", "NewJersey", "Colorado", "NorthCarolina", "Arizona")
