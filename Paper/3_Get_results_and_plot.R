@@ -41,7 +41,7 @@ df_jur_slope_results2 =  GET_JUR_METRICS_MODELS_COMPARED(df_preds_var, df_preds_
 
 
 #FORECASTS - SAN DIEGO
-title_plot = 'San Diego County forecasts January- November 2024 using the VAR-Lasso, AR-Lasso & naive models'
+title_plot = 'San Diego County forecasts January - November 2024 using the VAR-Lasso, AR-Lasso & naive models'
 df_preds_var_sd = df_preds_var %>% filter(Jurisdiction == 'SanDiego')
 df_preds_ar_sd = df_preds_ar %>% filter(Jurisdiction == 'SanDiego')
 df_preds_naive_sd = df_preds_naive %>% filter(Jurisdiction == 'SanDiego')
@@ -54,6 +54,14 @@ title_reported = 'Mpox Weekly Reported Cases. January 2023 - November 2024'
 PLOT_REPORTED_CASES(data_ts_23_24, 
                     list_jur, 
                     title_reported)
+
+#PLOT TOP 8
+ymax = 17
+PLOT_REPORTED_CASES_2x4(data_ts_23_24, list_jur, title_reported,  ymax, n_row_plot = 4,
+                    n_col_plot = 2)
+
+#PLOT ON ONE PLOT
+PLOT_REPORTED_CASES_JUR(data_mpox, list_jur, 2023)
 
 #ROUND NUMBERS
 df_paper_jur_results1 = df_jur_slope_results

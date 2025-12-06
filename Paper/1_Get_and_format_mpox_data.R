@@ -14,6 +14,9 @@ data_mpox = readxl::read_excel(path = paste0(DATA_FOLDER, file_name))
 
 #*********************************************************
 #2. DATA ORIGINAL (NEEDED FOR PLOTTING FORECASTS)
+
+START_YEAR_INTEREST = 2023
+
 list_jur = c("NewYorkCity", "Texas", "LA", "Florida", "Illinois", "Georgia",
              "SanDiego", "Washington")
 

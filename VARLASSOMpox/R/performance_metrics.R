@@ -38,6 +38,46 @@ GET_SLOPE_WEIGHTED_METRICS <- function(df_slope, df_preds) {
   
   weights <- df_preds_slope$delta_yt
   
+  # RMSE
+  slope_weighted_rmse <- sqrt(sum(weights * (df_preds_slope$Actual - df_preds_slope$Predicted)^2, na.rm = TRUE) / sum(weights, na.rm = TRUE))
+  slope_weighted_rmse <- round(slope_weighted_rmse, 10)
+  print(paste0('Slope weighted RMSE: ', slope_weighted_rmse))
+  
+  # MAE
+  slope_weighted_mae <- sum(weights * abs(df_preds_slope$Actual - df_preds_slope$Predicted), na.rm = TRUE) / sum(weights, na.rm = TRUE)
+  slope_weighted_mae <- round(slope_weighted_mae, 10)
+  print(paste0('Slope weighted MAE: ', slope_weighted_mae))
+  
+  # BIAS
+  slope_weighted_bias <- sum(weights * (df_preds_slope$Predicted - df_preds_slope$Actual), na.rm = TRUE) / sum(weights, na.rm = TRUE)
+  slope_weighted_bias <- round(slope_weighted_bias, 10)
+  print(paste0('Slope weighted BIAS: ', slope_weighted_bias))
+  
+  # MAPE
+  df_preds_slope_mape <- df_preds_slope %>% filter(Actual > 0)
+  
+  weights_mape <- df_preds_slope_mape$delta_yt
+  
+  slope_weighted_mape <- sum(weights_mape * abs((df_preds_slope_mape$Predicted - df_preds_slope_mape$Actual) / df_preds_slope_mape$Actual), na.rm = TRUE) / sum(weights_mape, na.rm = TRUE) * 100
+  print(paste0('Slope weighted MAPE (%): ', slope_weighted_mape))
+  
+  return(list(
+    slope_weighted_rmse = slope_weighted_rmse,
+    slope_weighted_mae = slope_weighted_mae,
+    slope_weighted_bias = slope_weighted_bias,
+    slope_weighted_mape = slope_weighted_mape
+  ))
+}
+
+
+GET_SLOPE_WEIGHTED_METRICS_I <- function(df_slope, df_preds) {
+  
+  df_preds_slope <- df_preds %>%
+    left_join(df_slope, by = c('Jurisdiction', 'date_week_start')) %>%
+    dplyr::select(Jurisdiction, date_week_start, Actual, Predicted, delta_yt)
+  
+  weights <- df_preds_slope$delta_yt
+  
   #RMSE
   slope_weighted_rmse <- sqrt(sum(weights * (df_preds_slope$Actual - df_preds_slope$Predicted)^2, na.rm = TRUE) / sum(weights, na.rm = TRUE))
   slope_weighted_rmse = round(slope_weighted_rmse, 10) #3
@@ -52,6 +92,7 @@ GET_SLOPE_WEIGHTED_METRICS <- function(df_slope, df_preds) {
   slope_weighted_bias = sum(weights * (df_preds_slope$Predicted - df_preds_slope$Actual), na.rm = TRUE) / sum(weights, na.rm = TRUE)
   slope_weighted_bias = round(slope_weighted_bias, 10) #3
   print(paste0('Slope weighted BIAS:', slope_weighted_bias))
+  
   
   return(list(slope_weighted_rmse = slope_weighted_rmse, slope_weighted_mae = slope_weighted_mae, slope_weighted_bias = slope_weighted_bias))
 }
@@ -69,6 +110,9 @@ GET_SLOPE_WEIGHTED_IMPROVEMENT <- function(df_slope, df_preds1, df_preds2) {
   naive_w_slope_mae <- list_metrics2$slope_weighted_mae
   var_w_slope_bias <- list_metrics1$slope_weighted_bias
   naive_w_slope_bias <- list_metrics2$slope_weighted_bias
+  #
+  var_w_slope_mape <- list_metrics1$slope_weighted_mape
+  naive_w_slope_mape <- list_metrics2$slope_weighted_mape
   
   # Calculate percentage improvements
   var_rmse_pcent_improve <- 100 * (naive_w_slope_rmse - var_w_slope_rmse) / naive_w_slope_rmse
@@ -77,6 +121,9 @@ GET_SLOPE_WEIGHTED_IMPROVEMENT <- function(df_slope, df_preds1, df_preds2) {
   print(paste0('var_mae_pcent_improve %; ', round(var_mae_pcent_improve,2)))
   var_bias_pcent_improve <- 100 * (naive_w_slope_bias - var_w_slope_bias) / naive_w_slope_bias
   print(paste0('var_bias_pcent_improve %; ', round(var_bias_pcent_improve,2)))
+  #MAPE IMPROVE
+  var_mape_pcent_improve <- 100*(naive_w_slope_mape - var_w_slope_mape) / naive_w_slope_mape
+  print(paste0('var_mape_pcent_improve %; ', round(var_mape_pcent_improve,2)))
   
   # Return as one-row dataframe
   var_w_slope_rmse = round(var_w_slope_rmse, 3)
@@ -90,10 +137,10 @@ GET_SLOPE_WEIGHTED_IMPROVEMENT <- function(df_slope, df_preds1, df_preds2) {
   var_bias_pcent_improve = round(var_bias_pcent_improve, 1)
   
   df_out <- data.frame(
-    Evaluation_Metric = c('Slope weighted RMSE', 'Slope weighted MAE', 'Slope weighted Bias'),
-    VAR_result = c(var_w_slope_rmse, var_w_slope_mae, var_w_slope_bias),
-    Naive_result = c(naive_w_slope_rmse, naive_w_slope_mae, naive_w_slope_bias),
-    Percent_improve_var = c(var_rmse_pcent_improve, var_mae_pcent_improve, var_bias_pcent_improve)
+    Evaluation_Metric = c('Slope weighted RMSE', 'Slope weighted MAE', 'Slope weighted Bias', 'Slope weighted MAPE'),
+    VAR_result = c(var_w_slope_rmse, var_w_slope_mae, var_w_slope_bias, var_w_slope_mape),
+    Model_2_result = c(naive_w_slope_rmse, naive_w_slope_mae, naive_w_slope_bias, naive_w_slope_mape),
+    Percent_improve_var = c(var_rmse_pcent_improve, var_mae_pcent_improve, var_bias_pcent_improve, var_mape_pcent_improve)
   )
   
   return(df_out)
@@ -117,7 +164,8 @@ GET_SLOPE_METRICS_JURISDICTION <- function(df_preds, df_slope, list_order) {
       Jurisdiction = jur,
       slope_weighted_rmse = slope_metrics$slope_weighted_rmse,
       slope_weighted_mae  = slope_metrics$slope_weighted_mae,
-      slope_weighted_bias = slope_metrics$slope_weighted_bias
+      slope_weighted_bias = slope_metrics$slope_weighted_bias,
+      slope_weighted_mape = slope_metrics$slope_weighted_mape
     ))
   }
   
@@ -134,26 +182,30 @@ GET_JUR_METRICS_MODELS_COMPARED <- function(df1, df2, df_slope, list_order) {
     rename(
       var_w_slope_rmse = slope_weighted_rmse,
       var_w_slope_mae  = slope_weighted_mae,
-      var_w_slope_bias = slope_weighted_bias
+      var_w_slope_bias = slope_weighted_bias,
+      var_w_slope_mape = slope_weighted_mape
     ) %>%
     left_join(
       res2 %>% rename(
         naive_w_slope_rmse = slope_weighted_rmse,
         naive_w_slope_mae  = slope_weighted_mae,
-        naive_w_slope_bias = slope_weighted_bias
+        naive_w_slope_bias = slope_weighted_bias,
+        naive_w_slope_mape = slope_weighted_mape
       ),
       by = "Jurisdiction"
     ) %>%
     mutate(
       var_rmse_pcent_improve = round(100 * (naive_w_slope_rmse - var_w_slope_rmse) / naive_w_slope_rmse, 10),
       var_mae_pcent_improve  = round(100 * (naive_w_slope_mae  - var_w_slope_mae)  / naive_w_slope_mae, 10),
-      var_bias_pcent_improve = round(100 * (naive_w_slope_bias - var_w_slope_bias) / naive_w_slope_bias, 10)
+      var_bias_pcent_improve = round(100 * (naive_w_slope_bias - var_w_slope_bias) / naive_w_slope_bias, 10),
+      var_mape_pcent_improve = round(100 * (naive_w_slope_mape - var_w_slope_mape) / naive_w_slope_mape, 10)
     ) %>%
     dplyr::select(
       Jurisdiction,
       var_w_slope_rmse, naive_w_slope_rmse, var_rmse_pcent_improve,
       var_w_slope_mae,  naive_w_slope_mae,  var_mae_pcent_improve,
-      var_w_slope_bias, naive_w_slope_bias, var_bias_pcent_improve
+      var_w_slope_bias, naive_w_slope_bias, var_bias_pcent_improve,
+      var_w_slope_mape, naive_w_slope_mape, var_mape_pcent_improve
     ) %>%
     mutate(Jurisdiction = factor(Jurisdiction, levels = list_order)) %>%
     arrange(Jurisdiction)
