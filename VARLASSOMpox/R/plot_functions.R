@@ -215,7 +215,7 @@ PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_nai
     ) +
     scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
     labs(x = "Date (week start date of reported cases)",
-         y = "Cases",
+         y = "Case Counts",
          title = title_plot) +
     theme_minimal(base_size = 17) +
     theme(
@@ -503,7 +503,7 @@ PLOT_REPORTED_CASES_2x4 <- function(data_ts,
     facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", nrow = n_row_plot, ncol = n_col_plot) +
     labs(
       x = "Date (week start date of reported cases)",
-      y = "Cases",
+      y = "Case Counts",
       title = title_plot
     ) +
     theme_minimal(base_size = font_base_size) +
