@@ -85,7 +85,7 @@ PLOT_GLOBAL_METRICS <- function(df) {
 #***********************
 #* PLOT_GLOBAL_IMPROVEMENTS
 # ---- Define plotting function ----
-PLOT_GLOBAL_IMPROVEMENTS <- function(df) {
+PLOT_GLOBAL_IMPROVEMENTS <- function(df, col_ar = 'darkgreen', col_naive = 'magenta') {
   
   # Rename columns
   df <- df %>%
@@ -110,12 +110,12 @@ PLOT_GLOBAL_IMPROVEMENTS <- function(df) {
   
   # Colors
   fill_colors <- c(
-    "% Improve VAR-AR" = alpha("darkgreen", 0.4),
-    "% Improve VAR-Naive" = alpha("red", 0.4)
+    "% Improve VAR-AR" = alpha(col_ar, 0.4),
+    "% Improve VAR-Naive" = alpha(col_naive, 0.4)
   )
   line_colors <- c(
-    "% Improve VAR-AR" = "darkgreen",
-    "% Improve VAR-Naive" = "red"
+    "% Improve VAR-AR" = col_ar,
+    "% Improve VAR-Naive" = col_naive
   )
   
   # Plot builder

@@ -1,61 +1,52 @@
 #*******************************
 #* PLOT FUNCTIONS
 #******************************
-library(patchwork)
-library(ggh4x)  # for facet_wrap2
 
-PLOT_DATES_TRUE_FORECAST <- function(data_ts, 
+PLOT_CASES_FORECASTS <- function(data_ts, 
                                      df_preds_var, df_preds_ar, df_preds_naive,
                                      list_ordered_jur, title_plot, 
-                                     n_col_plot = 2,
+                                     n_col_plot = 2, ymax = 17,
                                      col_var = "blue", col_ar = "darkgreen",
-                                     col_naive = "red", 
-                                     three_figures = TRUE, point_size = 2.0) {
+                                     col_naive = "magenta", 
+                                     three_figures = FALSE, point_size = 2.0) {
   
-  # --- Step 0: Jurisdiction labels ---
-  jur_labels = GET_JUR_LABELS()
+  jur_labels <- GET_JUR_LABELS()
   
-  # --- Step 1: Ensure date format ---
   data_ts <- data_ts %>% mutate(date_week_start = as.Date(date_week_start))
-  df_preds_var <- df_preds_var %>% mutate(date_week_start = as.Date(date_week_start),
-                                          Method = "VAR")
-  df_preds_ar <- df_preds_ar %>% mutate(date_week_start = as.Date(date_week_start),
-                                        Method = "AR")
-  df_preds_naive <- df_preds_naive %>% mutate(date_week_start = as.Date(date_week_start),
-                                              Method = "Naive")
+  df_preds_var <- df_preds_var %>% mutate(date_week_start = as.Date(date_week_start), Method = "VAR")
+  df_preds_ar <- df_preds_ar %>% mutate(date_week_start = as.Date(date_week_start), Method = "AR", Lower_CI = NA, Upper_CI = NA)
+  df_preds_naive <- df_preds_naive %>% mutate(date_week_start = as.Date(date_week_start), Method = "Naive", Lower_CI = NA, Upper_CI = NA)
   
-  # --- Step 2: Format true cases ---
   df_true_long <- data_ts %>%
-    pivot_longer(cols = -c(Week_Number, date_week_start), 
-                 names_to = "Jurisdiction", values_to = "Cases") %>%
+    pivot_longer(cols = -c(Week_Number, date_week_start), names_to = "Jurisdiction", values_to = "Cases") %>%
     mutate(Source = "True")
   
-  # --- Step 3: Combine predictions ---
   df_preds_all <- bind_rows(df_preds_var, df_preds_ar, df_preds_naive) %>%
-    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method) %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method, Lower_CI, Upper_CI) %>%
     rename(Cases = Predicted) %>%
     mutate(Source = "Predicted")
   
-  # --- Step 4: Combine true + predicted, set factor labels ---
   df_plot <- bind_rows(df_true_long, df_preds_all) %>%
     filter(Jurisdiction %in% list_ordered_jur) %>%
     mutate(
       Source = factor(Source, levels = c("True", "Predicted")),
-      Jurisdiction_orig = Jurisdiction,  # keep original for filtering
+      Jurisdiction_orig = Jurisdiction,
       Jurisdiction = factor(jur_labels[Jurisdiction], levels = jur_labels[list_ordered_jur]),
-      Method = factor(Method,
-                      levels = c("VAR", "AR", "Naive"),
-                      labels = c("VAR-Lasso", "AR-Lasso", "Naive"))
+      Method = factor(Method, levels = c("VAR", "AR", "Naive"), labels = c("VAR-Lasso", "AR-Lasso", "Naive"))
     )
   
-  # --- Step 5: Date breaks ---
   date_seq <- df_plot %>% distinct(date_week_start) %>% arrange(date_week_start) %>% pull(date_week_start)
   x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
-  #if (tail(date_seq, 1) != tail(x_breaks, 1)) x_breaks <- c(x_breaks, tail(date_seq, 1))
   
-  # --- Step 6: Plot helper ---
   plot_subset <- function(subset_jur) {
     ggplot() +
+      # Ribbon for VAR-Lasso
+      geom_ribbon(
+        data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "VAR-Lasso"),
+        aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI),
+        fill = col_var, alpha = 0.2
+      ) +
+      
       # Reported cases
       geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "True"),
                 aes(x = date_week_start, y = Cases, linetype = "Reported cases"),
@@ -64,32 +55,21 @@ PLOT_DATES_TRUE_FORECAST <- function(data_ts,
                  aes(x = date_week_start, y = Cases, shape = "Reported cases"),
                  color = "black", size = point_size) +
       
-      # Predicted cases
+      # Predicted lines/points
       geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "Predicted"),
-                aes(x = date_week_start, y = Cases, color = Method),
-                size = 0.7) +
+                aes(x = date_week_start, y = Cases, color = Method), size = 0.7) +
       geom_point(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "Predicted"),
-                 aes(x = date_week_start, y = Cases, color = Method),
-                 size = point_size) +
+                 aes(x = date_week_start, y = Cases, color = Method), size = point_size) +
       
       # Scales
-      scale_color_manual(name = "",
-                         values = c("VAR-Lasso" = col_var,
-                                    "AR-Lasso" = col_ar,
-                                    "Naive" = col_naive)) +
-      scale_linetype_manual(name = "",
-                            values = c("Reported cases" = "solid")) +
-      scale_shape_manual(name = "",
-                         values = c("Reported cases" = 16)) +
+      scale_color_manual(name = "", values = c("VAR-Lasso" = col_var, "AR-Lasso" = col_ar, "Naive" = col_naive)) +
+      scale_linetype_manual(name = "", values = c("Reported cases" = "solid")) +
+      scale_shape_manual(name = "", values = c("Reported cases" = 16)) +
       scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
       
       facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", ncol = n_col_plot) +
-      
-      labs(
-        x = "Date (week start date of reported cases)",
-        y = "Cases",
-        title = title_plot
-      ) +
+      labs(x = "Month", y = "Case counts", title = title_plot) +
+      coord_cartesian(ylim = c(0, ymax)) +
       theme_minimal(base_size = 17) +
       theme(
         plot.title = element_text(size = 22, hjust = 0.5),
@@ -104,21 +84,15 @@ PLOT_DATES_TRUE_FORECAST <- function(data_ts,
       )
   }
   
-  # --- Step 7: Multi-panel mode ---
   if (!three_figures) {
     return(plot_subset(list_ordered_jur))
   } else {
-    # Split into chunks of 4 for 2x2 layout
-    jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur) / 4))
-    
+    jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur)/4))
     plot_list <- lapply(seq_along(jur_chunks), function(i) {
       subset_jur <- jur_chunks[[i]]
-      
-      # Pad last panel if <4 jurisdictions
       if (length(subset_jur) < 4) {
         missing <- 4 - length(subset_jur)
         placeholders <- paste0("placeholder_", seq_len(missing))
-        
         df_dummy <- tibble(
           date_week_start = as.Date(NA),
           Week_Number = NA,
@@ -131,19 +105,137 @@ PLOT_DATES_TRUE_FORECAST <- function(data_ts,
         df_plot <<- bind_rows(df_plot, df_dummy)
         subset_jur <- c(subset_jur, placeholders)
       }
-      
       p <- plot_subset(subset_jur)
       print(p)
     })
-    
+    invisible(plot_list)
+  }
+}
+
+#***************
+#PLOT WITH CI
+PLOT_CASES_FORECASTS_CI_LEGEND <- function(data_ts, 
+                                               df_preds_var, df_preds_ar, df_preds_naive,
+                                               list_ordered_jur, title_plot, 
+                                               n_col_plot = 2, ymax = 17,
+                                               col_var = "blue", col_ar = "darkgreen",
+                                               col_naive = "magenta", 
+                                               three_figures = TRUE, point_size = 2.0) {
+  
+  jur_labels <- GET_JUR_LABELS()
+  
+  data_ts <- data_ts %>% mutate(date_week_start = as.Date(date_week_start))
+  df_preds_var <- df_preds_var %>% mutate(date_week_start = as.Date(date_week_start), Method = "VAR")
+  df_preds_ar <- df_preds_ar %>% mutate(date_week_start = as.Date(date_week_start), Method = "AR")
+  df_preds_naive <- df_preds_naive %>% mutate(date_week_start = as.Date(date_week_start), Method = "Naive", Lower_CI = NA, Upper_CI = NA)
+  
+  df_true_long <- data_ts %>%
+    pivot_longer(cols = -c(Week_Number, date_week_start), names_to = "Jurisdiction", values_to = "Cases") %>%
+    mutate(Source = "True")
+  
+  df_preds_all <- bind_rows(df_preds_var, df_preds_ar, df_preds_naive) %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method, Lower_CI, Upper_CI) %>%
+    rename(Cases = Predicted) %>%
+    mutate(Source = "Predicted")
+  
+  df_plot <- bind_rows(df_true_long, df_preds_all) %>%
+    filter(Jurisdiction %in% list_ordered_jur) %>%
+    mutate(
+      Source = factor(Source, levels = c("True", "Predicted")),
+      Jurisdiction_orig = Jurisdiction,
+      Jurisdiction = factor(jur_labels[Jurisdiction], levels = jur_labels[list_ordered_jur]),
+      Method = factor(Method, levels = c("VAR", "AR", "Naive"), labels = c("VAR-Lasso", "AR-Lasso", "Naive"))
+    )
+  
+  date_seq <- df_plot %>% distinct(date_week_start) %>% arrange(date_week_start) %>% pull(date_week_start)
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  
+  plot_subset <- function(subset_jur) {
+    ggplot() +
+      # CI ribbons
+      geom_ribbon(
+        data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "VAR-Lasso", !is.na(Lower_CI)),
+        aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI, fill = "VAR CI"), alpha = 0.3
+      ) +
+      geom_ribbon(
+        data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "AR-Lasso", !is.na(Lower_CI)),
+        aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI, fill = "AR CI"), alpha = 0.3
+      ) +
+      
+      # Predicted lines/points
+      geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "Predicted"),
+                aes(x = date_week_start, y = Cases, color = Method), size = 0.7) +
+      geom_point(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "Predicted"),
+                 aes(x = date_week_start, y = Cases, color = Method), size = point_size) +
+      
+      # Reported cases
+      geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "True"),
+                aes(x = date_week_start, y = Cases, linetype = "Reported cases"),
+                color = "black", size = 0.9) +
+      geom_point(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "True"),
+                 aes(x = date_week_start, y = Cases, shape = "Reported cases"),
+                 color = "black", size = point_size) +
+      
+      # Scales
+      scale_color_manual(name = "", values = c("VAR-Lasso" = col_var, "AR-Lasso" = col_ar, "Naive" = col_naive)) +
+      scale_fill_manual(name = "", values = c("VAR CI" = "lightblue", "AR CI" = "lightgreen")) +
+      scale_linetype_manual(name = "", values = c("Reported cases" = "solid")) +
+      scale_shape_manual(name = "", values = c("Reported cases" = 16)) +
+      
+      scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
+      facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", ncol = n_col_plot) +
+      labs(x = "Month", y = "Case counts", title = title_plot) +
+      coord_cartesian(ylim = c(0, ymax)) +
+      theme_minimal(base_size = 17) +
+      theme(
+        plot.title = element_text(size = 22, hjust = 0.5),
+        legend.position = "bottom",
+        legend.text = element_text(size = 16),
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 19),
+        legend.key.size = unit(1.2, "lines"),
+        legend.key.width = unit(2, "cm"),
+        legend.key.height = unit(0.8, "cm")
+      )
+  }
+  
+  if (!three_figures) {
+    return(plot_subset(list_ordered_jur))
+  } else {
+    jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur)/4))
+    plot_list <- lapply(seq_along(jur_chunks), function(i) {
+      subset_jur <- jur_chunks[[i]]
+      if (length(subset_jur) < 4) {
+        missing <- 4 - length(subset_jur)
+        placeholders <- paste0("placeholder_", seq_len(missing))
+        df_dummy <- tibble(
+          date_week_start = as.Date(NA),
+          Week_Number = NA,
+          Jurisdiction_orig = placeholders,
+          Jurisdiction = factor(placeholders, levels = placeholders),
+          Cases = NA,
+          Source = "True",
+          Method = "VAR-Lasso",
+          Lower_CI = NA,
+          Upper_CI = NA
+        )
+        df_plot <<- bind_rows(df_plot, df_dummy)
+        subset_jur <- c(subset_jur, placeholders)
+      }
+      p <- plot_subset(subset_jur)
+      print(p)
+    })
     invisible(plot_list)
   }
 }
 
 
+
+
 PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_naive,
                                          title_plot,
-                                         col_var = "blue", col_ar = "darkgreen", col_naive = "red") {
+                                         col_var = "blue", col_ar = "darkgreen", col_naive = "magenta") {
   
   # Standardize columns and add method labels
   df_var <- df_preds_var %>%
@@ -215,7 +307,7 @@ PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_nai
     ) +
     scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
     labs(x = "Date (week start date of reported cases)",
-         y = "Case Counts",
+         y = "Case counts",
          title = title_plot) +
     theme_minimal(base_size = 17) +
     theme(
@@ -230,83 +322,6 @@ PLOT_DATES_TRUE_FORECAST_JUR <- function(df_preds_var, df_preds_ar, df_preds_nai
       legend.key.size = unit(1.2, "lines"),
       legend.key.width = unit(2, "cm"),
       legend.key.height = unit(0.8, "cm")
-    )
-}
-
-
-
-#PLOT
-plot_jur_data <- function(data_sd, data_other, label_other, colour_jur, month_label = TRUE) {
-  
-  # Ensure consistent date column names
-  if (!"date_week_start" %in% names(data_sd)) stop("data_sd must have a column named 'date_week_start'")
-  if (!"date_week_start" %in% names(data_other)) stop("data_other must have a column named 'date_week_start'")
-  
-  # Add jurisdiction labels
-  data_sd <- data_sd %>%
-    mutate(
-      date_week_start = as.Date(date_week_start),
-      Jurisdiction = "San Diego"
-    )
-  
-  data_other <- data_other %>%
-    mutate(
-      date_week_start = as.Date(date_week_start),
-      Jurisdiction = label_other
-    )
-  
-  # Combine both datasets
-  data_combined <- bind_rows(data_sd, data_other)
-  
-  # Get all unique dates for x-axis
-  date_seq <- data_combined %>%
-    distinct(date_week_start) %>%
-    arrange(date_week_start) %>%
-    pull(date_week_start)
-  
-  # Pick every 4th date to reduce clutter
-  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
-  
-  # Ensure last date is included
-  if (tail(date_seq, 1) != tail(x_breaks, 1)) {
-    x_breaks <- c(x_breaks, tail(date_seq, 1))
-  }
-  
-  # Color mapping
-  jur_colors <- setNames(c("#A6D74E", colour_jur), c("San Diego", label_other))
-  
-  # x-axis breaks / labels
-  if(month_label) {
-    x_scale <- scale_x_date(date_breaks = "1 month", date_labels = "%b %y")
-  } else {
-    x_scale <- scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y")
-  }
-  
-  # Plot
-  ggplot(data_combined, aes(x = date_week_start, y = Cases, group = Jurisdiction)) +
-    geom_line(aes(color = Jurisdiction), size = 1) +
-    geom_point(aes(fill = Jurisdiction),
-               shape = 21,
-               color = "black",
-               size = 2.8,
-               stroke = 0.8) +
-    scale_color_manual(values = jur_colors) +
-    scale_fill_manual(values = jur_colors) +
-    x_scale +
-    labs(
-      x = ifelse(month_label, "Month", "Week start date"),
-      y = "Cases",
-      title = ifelse(month_label,
-                     paste("Mpox weekly reported cases:", label_other, "vs San Diego, 2023–2024"),
-                     paste("Mpox weekly reported cases:", label_other, "vs San Diego, 2023–2024")),
-      color = "Jurisdiction",
-      fill = "Jurisdiction"
-    ) +
-    theme_minimal(base_size = 16) +
-    theme(
-      legend.position = "bottom",
-      plot.title = element_text(face = "bold"),
-      axis.text.x = element_text(angle = 45, hjust = 1)
     )
 }
 
@@ -540,25 +555,23 @@ GET_JUR_LABELS <- function(){
 }
 
 
-#SENSITIVITY PLOTS!
-# SENSITIVITY PLOTS!
+#SENSITIVITY PLOTS
 PLOT_SMOOTHING_SENSITIVITY <- function(df,
                                        col_var = "blue", col_ar = "darkgreen",
-                                       col_naive = "red",
-                                       base_size = 17, title_size = 18,
-                                       legend_size = 16, axis_label_size = 16, axis_tick_size = 13,
-                                       point_size = 3, highlight_size = 5,
+                                       col_naive = "magenta",
+                                       base_size = 15, title_size = 16,
+                                       legend_size = 16, axis_label_size = 15, axis_tick_size = 14,
+                                       point_size = 3, highlight_size = 8,
                                        line_size = 1,
                                        legend_x = 0.75, legend_y = 0.85) {
-  
   # -----------------------------
-  # Convert to long format
+  # Convert to long format safely
   # -----------------------------
   df_long <- df %>%
     pivot_longer(
       cols = -Smoothing,
       names_to = c("Metric", "Model"),
-      names_sep = "_",
+      names_pattern = "(RMSE|MAE)_(.*)",
       values_to = "Value"
     ) %>%
     mutate(Model = factor(Model, levels = c("VAR", "AR", "Naive")))
@@ -577,6 +590,11 @@ PLOT_SMOOTHING_SENSITIVITY <- function(df,
   # Colors
   cols <- c("VAR" = col_var, "AR" = col_ar, "Naive" = col_naive)
   
+  # Legend labels
+  labels <- c("VAR" = "VAR-Lasso",
+              "AR" = "AR-Lasso",
+              "Naive" = "Naive")
+  
   # --------------------------------
   # Helper theme with legend inside
   # --------------------------------
@@ -589,14 +607,12 @@ PLOT_SMOOTHING_SENSITIVITY <- function(df,
         legend.text = element_text(size = legend_size),
         legend.title = element_blank(),
         plot.title = element_text(hjust = 0.5, size = title_size),
-        #axis.title.x = element_text(size = axis_label_size),
-        #axis.title.y = element_text(size = axis_label_size),
         axis.text.x = element_text(size = axis_tick_size),
         axis.text.y = element_text(size = axis_tick_size),
         axis.title.x = element_text(size = axis_label_size,
-                                    margin = margin(t = 15)),  # space above x-axis label
+                                    margin = margin(t = 15)),
         axis.title.y = element_text(size = axis_label_size,
-                                    margin = margin(r = 15))   # space to the right of y-axis label
+                                    margin = margin(r = 15))
       )
   }
   
@@ -612,9 +628,10 @@ PLOT_SMOOTHING_SENSITIVITY <- function(df,
     geom_point(data = highlight_rmse,
                aes(x = Smoothing, y = Value),
                inherit.aes = FALSE,
-               color = "green", shape = 1, stroke = 1.5,
+               color = "orange", shape = 1, stroke = 1.5,
                size = highlight_size) +
-    scale_color_manual(values = cols) +
+    scale_color_manual(values = cols, labels = labels) +
+    scale_shape_manual(values = c(16, 17, 15), labels = labels) +
     labs(
       x = "Average moving window (weeks)",
       y = "Positive slope-weighted RMSE",
@@ -634,9 +651,10 @@ PLOT_SMOOTHING_SENSITIVITY <- function(df,
     geom_point(data = highlight_mae,
                aes(x = Smoothing, y = Value),
                inherit.aes = FALSE,
-               color = "green", shape = 1, stroke = 1.5,
+               color = "orange", shape = 1, stroke = 1.5,
                size = highlight_size) +
-    scale_color_manual(values = cols) +
+    scale_color_manual(values = cols, labels = labels) +
+    scale_shape_manual(values = c(16, 17, 15), labels = labels) +
     labs(
       x = "Average moving window (weeks)",
       y = "Positive slope-weighted MAE",
@@ -647,17 +665,232 @@ PLOT_SMOOTHING_SENSITIVITY <- function(df,
   return(list(RMSE = p_rmse, MAE = p_mae))
 }
 
+#*********************
+# METRICS
+
+# ---- Define the plotting function ----
+PLOT_GLOBAL_METRICS <- function(df) {
+  
+  # Replace column names with nicer labels
+  df <- df %>%
+    rename(
+      `VAR Lasso`    = VAR_Lasso,
+      `AR Lasso`     = AR_Lasso,
+      `Naive`        = Naive,
+      `Improve VA %` = ImproveVA,
+      `Improve VN %` = ImproveVN
+    )
+  
+  # Pivot longer
+  df_long <- df %>%
+    pivot_longer(
+      cols = c(`VAR Lasso`, `AR Lasso`, `Naive`, `Improve VA %`, `Improve VN %`),
+      names_to = "Model",
+      values_to = "Value"
+    )
+  
+  # Set x-axis order
+  df_long$Model <- factor(
+    df_long$Model,
+    levels = c("VAR Lasso", "AR Lasso", "Naive", "Improve VA %", "Improve VN %")
+  )
+  
+  # Fill colors (light alpha for improvements)
+  fill_colors <- c(
+    "VAR Lasso"    = "blue",
+    "AR Lasso"     = "darkgreen",
+    "Naive"        = "red",
+    "Improve VA %" = alpha("darkgreen", 0.3),
+    "Improve VN %" = alpha("red", 0.3)
+  )
+  
+  # Outline colors
+  line_colors <- c(
+    "VAR Lasso"    = "blue",
+    "AR Lasso"     = "darkgreen",
+    "Naive"        = "red",
+    "Improve VA %" = alpha("darkgreen", 0.5),
+    "Improve VN %" = alpha("red", 0.5)
+  )
+  
+  # Plot builder
+  make_plot <- function(metric_name) {
+    df_sub <- df_long %>% filter(Metric == metric_name)
+    
+    p <- ggplot(df_sub,
+                aes(x = Model, y = Value, fill = Model, color = Model)) +
+      geom_col(width = 0.75, linewidth = 1.1) +
+      scale_fill_manual(values = fill_colors) +
+      scale_color_manual(values = line_colors) +
+      labs(title = metric_name, x = NULL, y = NULL) +
+      theme_bw(base_size = 14) +
+      theme(
+        axis.text.x = element_text(size = 13, angle = 30, hjust = 1),
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5, size = 15, face = "bold")
+      )
+    
+    # Explicit y-axis ticks for RMSE & MAE
+    if (metric_name %in% c("Slope-weighted RMSE", "Slope-weighted MAE")) {
+      p <- p + scale_y_continuous(limits = c(0, 16),
+                                  breaks = c(0, 5, 10, 15))
+    }
+    
+    return(p)
+  }
+  
+  p_rmse <- make_plot("Slope-weighted RMSE")
+  p_mae  <- make_plot("Slope-weighted MAE")
+  p_bias <- make_plot("Slope-weighted Bias")
+  
+  # Combine horizontally
+  patchwork::wrap_plots(p_rmse, p_mae, p_bias, ncol = 3)
+}
+
+#***********************
+#* PLOT_GLOBAL_IMPROVEMENTS
+# ---- Define plotting function ----
+PLOT_GLOBAL_IMPROVEMENTS <- function(df, col_ar = 'darkgreen', col_naive = 'magenta',
+                                     axis_label_size = 17) {
+  
+  # Rename columns
+  df <- df %>%
+    rename(
+      `% Improve VAR-AR` = ImproveVA,
+      `% Improve VAR-Naive` = ImproveVN
+    )
+  
+  # Pivot to long format
+  df_long <- df %>%
+    pivot_longer(
+      cols = c(`% Improve VAR-AR`, `% Improve VAR-Naive`),
+      names_to = "Model",
+      values_to = "Value"
+    )
+  
+  # Factor order
+  df_long$Model <- factor(
+    df_long$Model,
+    levels = c("% Improve VAR-AR", "% Improve VAR-Naive")
+  )
+  
+  # Colors
+  fill_colors <- c(
+    "% Improve VAR-AR" = alpha(col_ar, 0.4),
+    "% Improve VAR-Naive" = alpha(col_naive, 0.4)
+  )
+  line_colors <- c(
+    "% Improve VAR-AR" = col_ar,
+    "% Improve VAR-Naive" = col_naive
+  )
+  
+  # Plot builder
+  make_plot <- function(metric_name) {
+    df_sub <- df_long %>% filter(Metric == metric_name)
+    
+    ggplot(df_sub, aes(x = Model, y = Value, fill = Model, color = Model)) +
+      geom_col(width = 0.7, linewidth = 1.1) +
+      scale_fill_manual(values = fill_colors) +
+      scale_color_manual(values = line_colors) +
+      labs(title = metric_name, x = NULL, y = "% Improvement") +
+      theme_bw(base_size = 14) +
+      theme(
+        axis.text.x = element_text(size = axis_label_size, angle = 30, hjust = 1),
+        axis.text.y = element_text(size = axis_label_size),
+        axis.title.x = element_text(size = axis_label_size),
+        axis.title.y = element_text(size = axis_label_size),
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5, size = 15, face = "bold")
+      ) +
+      scale_y_continuous(limits = c(0, max(df_sub$Value) * 1.2),
+                         breaks = scales::pretty_breaks(n = 4))
+  }
+  
+  p_rmse <- make_plot("Slope-weighted RMSE")
+  p_mae  <- make_plot("Slope-weighted MAE")
+  p_bias <- make_plot("Slope-weighted Bias")
+  
+  patchwork::wrap_plots(p_rmse, p_mae, p_bias, ncol = 3)
+}
+
+
+PLOT_JURISDICTION_METRICS <- function(df, alpha_value = 0.3, axis_tick_size = 12,
+                                      axis_label_size = 14) {
+  
+  # ---- Pivot to long format ----
+  df_long <- df %>%
+    pivot_longer(-Jurisdiction, names_to = "variable", values_to = "Value") %>%
+    tidyr::separate(variable, into = c("Model","Metric"), sep = "_") %>%
+    mutate(
+      Metric = factor(case_when(
+        Metric == "RMSE" ~ "Slope-weighted RMSE",
+        Metric == "MAE"  ~ "Slope-weighted MAE"
+      ), levels = c("Slope-weighted RMSE","Slope-weighted MAE")),
+      Model = factor(case_when(
+        Model == "VAR"        ~ "VAR Lasso",
+        Model == "AR"         ~ "AR Lasso",
+        Model == "Naive"      ~ "Naive",
+        Model == "ImproveVA"  ~ "Improve VA %",
+        Model == "ImproveVN"  ~ "Improve VN %"
+      ), levels = c("VAR Lasso","AR Lasso","Naive","Improve VA %","Improve VN %")),
+      # Keep levels for order, labels for display
+      Jurisdiction = factor(Jurisdiction,
+                            levels = c("NYC","Texas","LA","Florida","Illinois","Georgia","San Diego","Washington"),
+                            labels = c("New York City","Texas","Los Angeles county","Florida","Illinois","Georgia","San Diego county","Washington (state)"))
+    )
+  
+  # ---- Fill and outline colors ----
+  fill_colors <- c(
+    "VAR Lasso"    = "blue",
+    "AR Lasso"     = "darkgreen",
+    "Naive"        = "red",
+    "Improve VA %" = alpha("darkgreen", alpha_value),
+    "Improve VN %" = alpha("red", alpha_value)
+  )
+  
+  line_colors <- c(
+    "VAR Lasso"    = "blue",
+    "AR Lasso"     = "darkgreen",
+    "Naive"        = "red",
+    "Improve VA %" = alpha("darkgreen", alpha_value + 0.2),
+    "Improve VN %" = alpha("red", alpha_value + 0.2)
+  )
+  
+  # ---- Plot using facet_grid ----
+  p <- ggplot(df_long, aes(x = Model, y = Value, fill = Model, color = Model)) +
+    geom_col(width = 0.75, linewidth = 1.1) +
+    scale_fill_manual(values = fill_colors) +
+    scale_color_manual(values = line_colors) +
+    facet_grid(Metric ~ Jurisdiction, scales = "free_y") +
+    theme_bw(base_size = 12) +
+    theme(
+      axis.text.x = element_text(angle = 30, hjust = 1, size = axis_tick_size),
+      axis.title.x = element_text(size = axis_label_size, face = "bold"),
+      axis.text.y = element_text(size = axis_tick_size),
+      legend.position = "none",
+      strip.text.x = element_text(size = axis_label_size, face = "bold"),  # full jurisdiction names
+      strip.text.y = element_text(size = axis_label_size, face = "bold"),
+      plot.title = element_text(size = axis_label_size, face = "bold"),
+      panel.spacing = unit(0.5, "lines"),
+      plot.margin = margin(t = 5, r = 5, b = 5, l = 25)  # increase left margin for long labels
+    ) +
+    labs(x = "Model", y = NULL) +
+    coord_cartesian(clip = "off")  # prevent cutting off labels
+  
+  return(p)
+}
+
 # -----------------------------
 # SENSITIVITY PLOTS FUNCTION
 # -----------------------------
 PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
-                                       col_var = "blue", col_ar = "darkgreen",
-                                       col_naive = "red",
-                                       base_size = 17, title_size = 18,
-                                       legend_size = 16, axis_label_size = 16, axis_tick_size = 13,
-                                       point_size = 3, highlight_size = 5,
-                                       line_size = 1,
-                                       legend_x = 0.75, legend_y = 0.85) {
+                                          col_var = "blue", col_ar = "darkgreen",
+                                          col_naive = "magenta",
+                                          base_size = 17, title_size = 18,
+                                          legend_size = 16, axis_label_size = 16, axis_tick_size = 13,
+                                          point_size = 3, highlight_size = 8,
+                                          line_size = 1,
+                                          legend_x = 0.75, legend_y = 0.85) {
   
   # -----------------------------
   # Convert to long format
@@ -718,7 +951,7 @@ PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
     geom_point(data = highlight_rmse,
                aes(x = Smoothing, y = Value),
                inherit.aes = FALSE,
-               color = "green", shape = 1, stroke = 1.5,
+               color = "orange", shape = 1, stroke = 1.5,
                size = highlight_size) +
     scale_color_manual(values = cols) +
     scale_y_continuous(breaks = c(1.75, 2, 2.25, 2.5, 2.75, 3, 3.25)) +  # <-- set RMSE y-axis ticks
@@ -742,7 +975,7 @@ PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
     geom_point(data = highlight_mae,
                aes(x = Smoothing, y = Value),
                inherit.aes = FALSE,
-               color = "green", shape = 1, stroke = 1.5,
+               color = "orange", shape = 1, stroke = 1.5,
                size = highlight_size) +
     scale_color_manual(values = cols) +
     scale_y_continuous(breaks = c(1.25, 1.5, 1.75, 2, 2.25, 2.5)) +  # <-- set MAE y-axis ticks
@@ -766,5 +999,227 @@ PLOT_SMOOTHING_SENSITIVITY_x2 <- function(df,
   
   print(combined_plot)
   #return(combined_plot)
+}
+
+PLOT_CASES_FORECASTS_CI <- function(data_ts, 
+                                        df_preds_var, df_preds_ar, df_preds_naive,
+                                        list_ordered_jur, title_plot, 
+                                        n_col_plot = 2, ymax = 17,
+                                        col_var = "blue", col_ar = "darkgreen",
+                                        col_naive = "magenta", 
+                                        three_figures = TRUE, point_size = 2.0) {
+  
+  jur_labels <- GET_JUR_LABELS()
+  
+  data_ts <- data_ts %>% mutate(date_week_start = as.Date(date_week_start))
+  df_preds_var <- df_preds_var %>% mutate(date_week_start = as.Date(date_week_start), Method = "VAR")
+  df_preds_ar <- df_preds_ar %>% mutate(date_week_start = as.Date(date_week_start), Method = "AR")
+  df_preds_naive <- df_preds_naive %>% mutate(date_week_start = as.Date(date_week_start), Method = "Naive", Lower_CI = NA, Upper_CI = NA)
+  
+  df_true_long <- data_ts %>%
+    pivot_longer(cols = -c(Week_Number, date_week_start), names_to = "Jurisdiction", values_to = "Cases") %>%
+    mutate(Source = "True")
+  
+  df_preds_all <- bind_rows(df_preds_var, df_preds_ar, df_preds_naive) %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method, Lower_CI, Upper_CI) %>%
+    rename(Cases = Predicted) %>%
+    mutate(Source = "Predicted")
+  
+  df_plot <- bind_rows(df_true_long, df_preds_all) %>%
+    filter(Jurisdiction %in% list_ordered_jur) %>%
+    mutate(
+      Source = factor(Source, levels = c("True", "Predicted")),
+      Jurisdiction_orig = Jurisdiction,
+      Jurisdiction = factor(jur_labels[Jurisdiction], levels = jur_labels[list_ordered_jur]),
+      Method = factor(Method, levels = c("VAR", "AR", "Naive"), labels = c("VAR-Lasso", "AR-Lasso", "Naive"))
+    )
+  
+  date_seq <- df_plot %>% distinct(date_week_start) %>% arrange(date_week_start) %>% pull(date_week_start)
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
+  
+  plot_subset <- function(subset_jur) {
+    ggplot() +
+      
+      # Ribbon for AR-Lasso (light green)
+      geom_ribbon(
+        data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "AR-Lasso", !is.na(Lower_CI)),
+        aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI),
+        fill = "lightgreen", alpha = 0.3
+      ) +
+      
+      # Ribbon for VAR-Lasso (light blue)
+      geom_ribbon(
+        data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "VAR-Lasso", !is.na(Lower_CI)),
+        aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI),
+        fill = "cyan") + #, alpha = 0.3 +
+      
+      # Reported cases
+      geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "True"),
+                aes(x = date_week_start, y = Cases, linetype = "Reported cases"),
+                color = "black", size = 0.9) +
+      geom_point(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "True"),
+                 aes(x = date_week_start, y = Cases, shape = "Reported cases"),
+                 color = "black", size = point_size) +
+      
+      # Predicted lines/points
+      geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "Predicted"),
+                aes(x = date_week_start, y = Cases, color = Method), size = 0.7) +
+      geom_point(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "Predicted"),
+                 aes(x = date_week_start, y = Cases, color = Method), size = point_size) +
+      
+      # Scales
+      scale_color_manual(name = "", values = c("VAR-Lasso" = col_var, "AR-Lasso" = col_ar, "Naive" = col_naive)) +
+      scale_linetype_manual(name = "", values = c("Reported cases" = "solid")) +
+      scale_shape_manual(name = "", values = c("Reported cases" = 16)) +
+      scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
+      
+      facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", ncol = n_col_plot) +
+      labs(x = "Month", y = "Case counts", title = title_plot) +
+      coord_cartesian(ylim = c(0, ymax)) +
+      theme_minimal(base_size = 17) +
+      theme(
+        plot.title = element_text(size = 22, hjust = 0.5),
+        legend.position = "bottom",
+        legend.text = element_text(size = 16),
+        legend.title = element_text(size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        strip.text = element_text(size = 19),
+        legend.key.size = unit(1.2, "lines"),
+        legend.key.width = unit(2, "cm"),
+        legend.key.height = unit(0.8, "cm")
+      )
+  }
+  
+  if (!three_figures) {
+    return(plot_subset(list_ordered_jur))
+  } else {
+    jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur)/4))
+    plot_list <- lapply(seq_along(jur_chunks), function(i) {
+      subset_jur <- jur_chunks[[i]]
+      if (length(subset_jur) < 4) {
+        missing <- 4 - length(subset_jur)
+        placeholders <- paste0("placeholder_", seq_len(missing))
+        df_dummy <- tibble(
+          date_week_start = as.Date(NA),
+          Week_Number = NA,
+          Jurisdiction_orig = placeholders,
+          Jurisdiction = factor(placeholders, levels = placeholders),
+          Cases = NA,
+          Source = "True",
+          Method = "VAR-Lasso",
+          Lower_CI = NA,
+          Upper_CI = NA
+        )
+        df_plot <<- bind_rows(df_plot, df_dummy)
+        subset_jur <- c(subset_jur, placeholders)
+      }
+      p <- plot_subset(subset_jur)
+      print(p)
+    })
+    invisible(plot_list)
+  }
+}
+
+
+#**********************************
+#* PLOT CI
+PLOT_VAR_LASSO_FORECAST_CI_2x4 <- function(data_ts,  df_preds_var, list_ordered_jur, title_plot, 
+                                           ymax, title_size = 19, sub_title_size = 16, 
+                                           font_base_size = 15, point_size = 1.5, 
+                                           line_size = 0.75, n_row_plot = 4,
+                                           n_col_plot = 2, col_var = "blue") {
+  
+  # --- Step 1: Ensure date format ---
+  jur_labels <- GET_JUR_LABELS()
+  data_ts <- data_ts %>% mutate(date_week_start = as.Date(date_week_start))
+  df_preds_var <- df_preds_var %>% mutate(date_week_start = as.Date(date_week_start))
+  
+  jur_levels <- list_ordered_jur # jur_labels[unlist(list_ordered_jur)]
+  
+  
+  # --- Step 2: Format true cases ---
+  df_true_long <- data_ts %>%
+    pivot_longer(cols = -c(Week_Number, date_week_start), 
+                 names_to = "Jurisdiction", values_to = "Cases") %>%
+    mutate(Source = "True")
+  
+  # --- Step 3: Format VAR predictions ---
+  df_preds_long <- df_preds_var %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Lower_CI, Upper_CI) %>%
+    rename(Cases = Predicted) %>%
+    mutate(Source = "Predicted")
+  
+  # --- Step 4: Combine and filter ---
+  df_plot <- bind_rows(df_true_long, df_preds_long) %>%
+    filter(Jurisdiction %in% list_ordered_jur) %>%
+    mutate(
+      Source = factor(Source, levels = c("True", "Predicted")),
+      Jurisdiction_orig = Jurisdiction,
+      Jurisdiction = factor(jur_labels[Jurisdiction], levels = jur_levels)
+    )
+  
+  # --- Step 5: Date breaks ---
+  date_seq <- df_plot %>% distinct(date_week_start) %>% arrange(date_week_start) %>% pull(date_week_start)
+  x_breaks <- date_seq[seq(1, length(date_seq), by = 8)]
+  
+  # --- Step 6: Plot ---
+  ggplot() +
+    # Ribbon for VAR-Lasso CI
+    geom_ribbon(
+      data = df_plot %>% filter(Source == "Predicted", !is.na(Lower_CI)),
+      aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI),
+      fill = col_var, alpha = 0.2
+    ) +
+    
+    # Reported cases
+    geom_line(
+      data = df_plot %>% filter(Source == "True"),
+      aes(x = date_week_start, y = Cases, linetype = "Reported cases"),
+      color = "black", size = line_size
+    ) +
+    geom_point(
+      data = df_plot %>% filter(Source == "True"),
+      aes(x = date_week_start, y = Cases, shape = "Reported cases"),
+      color = "black", size = point_size
+    ) +
+    
+    # Predicted cases
+    geom_line(
+      data = df_plot %>% filter(Source == "Predicted"),
+      aes(x = date_week_start, y = Cases, linetype = "VAR-Lasso forecast"),
+      color = col_var, size = line_size
+    ) +
+    geom_point(
+      data = df_plot %>% filter(Source == "Predicted"),
+      aes(x = date_week_start, y = Cases, shape = "VAR-Lasso forecast"),
+      color = col_var, size = point_size
+    ) +
+    
+    ylim(0, ymax) +
+    scale_linetype_manual(
+      name = "", 
+      values = c("Reported cases" = "solid", "VAR-Lasso forecast" = "dashed")
+    ) +
+    scale_shape_manual(
+      name = "", 
+      values = c("Reported cases" = 16, "VAR-Lasso forecast" = 17)
+    ) +
+    scale_x_date(breaks = x_breaks, date_labels = "%m/%d/%y") +
+    facet_wrap2(~Jurisdiction, scales = "free_y", axes = "all", nrow = n_row_plot, ncol = n_col_plot) +
+    labs(
+      x = "Date (week start date of reported cases)",
+      y = "Case Counts",
+      title = title_plot
+    ) +
+    theme_minimal(base_size = font_base_size) +
+    theme(
+      plot.title = element_text(size = title_size, hjust = 0.5),
+      legend.position = "bottom",
+      legend.text = element_text(size = font_base_size),
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text = element_text(size = sub_title_size),
+      panel.spacing.y = unit(0.2, "lines"),
+      legend.key.width = unit(2, "cm")
+    )
 }
 

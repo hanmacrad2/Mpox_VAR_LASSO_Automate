@@ -11,3 +11,5 @@ library(surveillance)
 library(stringr)
 library(bigtime)
 library(ggpattern)
+library(patchwork)
+library(ggh4x)  # for facet_wrap2

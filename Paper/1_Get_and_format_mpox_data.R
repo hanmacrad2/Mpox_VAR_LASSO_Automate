@@ -3,6 +3,7 @@
 #*********************************
 #LIBRARIRES
 library(VARLASSOMpox)
+ls("package:VARLASSOMpox")
 FOLDER = "C:/Users/h2cra/OneDrive/Documents/GitHub/Mpox_VAR_LASSO_Automate/"
 source(paste0(FOLDER, 'libs_required.R'))
 
@@ -91,5 +92,7 @@ data_tot_ts_smooth = GET_TS_DATA(df_model_smooth)
 
 #PLOT 2023 & 2024 Data 
 data_ts_23_24 = data_ts %>% filter(Week_Number > 32)
+
+data_ts_24 = data_ts %>% filter(Week_Number > 84)
 
 

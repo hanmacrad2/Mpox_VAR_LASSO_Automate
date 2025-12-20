@@ -1,128 +1,149 @@
-#*********************************
-#* Sparse Auto-regression model
-#* *******************************
-
-AR_model_jurs <- function(train_data_ts, future_data_ts, future_real_ts, list_jur,
-                          n_lags = 25, n_step_ahead = 2) {
+#BOOTSTRAP_VAR_2STEP
+ 
+VAR_LASSO_FORECAST_TWO_STEP_CI <- function(train_data_ts, future_data_ts, future_real_ts, ROLL_WINDOW,
+                                           n_lags = 25, alpha = 0.05) {
+  'Recursive 2-step-ahead VAR Lasso forecasts with propagated variance for t+2'
   
-  'Simple Naive estimate. Calculates 4 week average of weekly count data and projects n_step_ahead in weeks (2 weeks)'
-  df_results_ar = data.frame()
+  print(paste0('N States: ', (ncol(train_data_ts) - 2)))
+  print(paste0('Roll window: ', ROLL_WINDOW))
+  print(paste0('N lags: ', n_lags))
+  print(paste0('N step_ahead: ', 2))
+  print(paste0('Alpha: ', alpha))
   
-  for (jur_name in list_jur) {
-    
-    print(jur_name)
-    train_data_ts_jur1 = train_data_ts[, c('date_week_start', 'Week_Number', jur_name)]
-    future_data_ts_jur1 = future_data_ts[, c('date_week_start', 'Week_Number', jur_name)]
-    future_real_ts_jur1 = future_real_ts[, c('date_week_start', 'Week_Number', jur_name)] # %>% filter(Jurisdiction == jur_name)
-    df_result_jur = AR_model(train_data_ts_jur1, future_data_ts_jur1, future_real_ts_jur1,
-                             jur_name)
-    df_results_ar = rbind(df_results_ar, df_result_jur)
-    
-  }
+  week_number_forecast <- future_data_ts$Week_Number
+  list_date_week_start <- as.Date(future_data_ts$date_week_start)
+  train_data_ts <- train_data_ts %>% dplyr::select(-Week_Number, -date_week_start)
+  future_data_ts <- future_data_ts %>% dplyr::select(-Week_Number, -date_week_start)
+  future_real_ts <- future_real_ts %>% dplyr::select(-Week_Number, -date_week_start)
   
-  return(df_results_ar)
-}
-
-
-
-
-AR_model <- function(train_data_ts_jur1, future_data_ts_jur1, future_real_ts_jur1,
-                     jur_name, n_lags = 25, n_step_ahead = 2) {
-  
-  'Simple Naive estimate. Calculates 4 week average of weekly count data and projects n_step_ahead in weeks (2 weeks)'
-  # Remove non-jurisdictional columns
-  week_number_forecast <- future_data_ts_jur1$Week_Number
-  list_date_week_start <- as.Date(future_data_ts_jur1$date_week_start)
-  future_real_ts_jur1 <- future_real_ts_jur1 %>% dplyr::select(-Week_Number, -date_week_start)
-  
-  # Remove Week_Number and date_week_start from train
-  train_week_t <- train_data_ts_jur1 %>% dplyr::select(-Week_Number, -date_week_start)
-  
-  #jur_names <- colnames(train_data_ts_jur1)
-  n_forecasts <- nrow(future_data_ts_jur1) - (n_step_ahead - 1)
+  juris_names <- colnames(train_data_ts)
+  n_forecasts <- nrow(future_data_ts) - 1
   
   results_df <- data.frame()
+  df_coeffs <- data.frame()
+  train_week_t <- train_data_ts 
   
-  for (week_t in 1:n_forecasts) {
+  for (week_t in 1:n_forecasts) { 
+    cat('Forecast', week_t, '=> predicting week:', week_number_forecast[week_t + 1], '\n')
     
-    print(paste0('week_t: ', week_t))
-    
+    # 1. Difference training data
     train_diff <- diff(as.matrix(train_week_t), differences = 1)
     
-    #Model fit
-    train_diff_scaled = scale(train_diff)
-    #train_diff_scaled = matrix(as.numeric(train_diff_scaled), nrow = nrow(train_diff_scaled))
-    mu <- attr(train_diff_scaled, "scaled:center")
-    sd_ <- attr(train_diff_scaled, "scaled:scale")
+    # 2. Fit VAR Lasso model on differenced data
+    model_tmp <- constructModel(train_diff, p = n_lags, struct = 'Basic',
+                                gran = c(0.05), ownlambdas = TRUE, 
+                                T1 = floor(nrow(train_diff) * 0.65), verbose = FALSE)
     
-    #MODEL
-    ar_lasso_model <- sparseVAR(Y= train_diff_scaled, p = n_lags, selection = "cv") #selection = "cv") #, VARpen = "L1",  selection = "cv")
-    #browser()
-    # 4. Step 1 forecast (t+1)
-    last_obs <- as.numeric(tail(train_week_t, 1)) 
-    pred_diff_t1_scaled <- directforecast(ar_lasso_model, h = 1)
-    pred_diff_t1_unscaled = as.numeric(pred_diff_t1_scaled)*sd_ + mu
+    cv_model_tmp <- cv.BigVAR(model_tmp)
     
-    level_t1 <- last_obs + as.numeric(pred_diff_t1_unscaled)
+    # 3. Save non-zero coefficients
+    coefficients <- coef(cv_model_tmp)
+    df_coeffs_t <- EXTRACT_NONZERO_LASSO_COEFFS(coefficients, juris_names)
+    df_coeffs_t$Week_Number <- rep(week_number_forecast[week_t], nrow(df_coeffs_t))
+    df_coeffs <- rbind(df_coeffs, df_coeffs_t)
     
-    # 5. Step 2 forecast (t+2)
-    extended_series <- rbind(train_week_t, level_t1)
+    # 4. Step 1 forecast (t+1) with CI
+    last_obs <- as.numeric(tail(train_week_t, 1))
+    pred_diff_t1_ci <- predict(cv_model_tmp, n.ahead = 1, confint = TRUE)
     
+    # Extract difference forecasts and bounds
+    diff_t1_mean <- as.numeric(pred_diff_t1_ci$forecast)
+    diff_t1_lower <- as.numeric(pred_diff_t1_ci$lower)
+    diff_t1_upper <- as.numeric(pred_diff_t1_ci$upper)
+    
+    # Convert to levels
+    level_t1_mean <- last_obs + diff_t1_mean
+    level_t1_lower <- last_obs + diff_t1_lower
+    level_t1_upper <- last_obs + diff_t1_upper
+    
+    # Step 1 variance in DIFFERENCES
+    z <- qnorm(1 - alpha / 2)
+    var_diff_t1 <- ((diff_t1_upper - diff_t1_lower) / (2 * z))^2
+    
+    # 5. Step 2 forecast (t+2) - use MEAN of t+1 for point forecast
+    extended_series <- rbind(train_week_t, level_t1_mean)
     extended_diff <- diff(as.matrix(extended_series), differences = 1)
-    extended_diff_scaled = scale(extended_diff)
-    mu <- attr(extended_diff_scaled, "scaled:center")
-    sd_ <- attr(extended_diff_scaled, "scaled:scale")
     
-    ar_lasso_model_2 = sparseVAR(Y= extended_diff_scaled, p = n_lags, selection = "cv") # VARpen = "L1",  
-    pred_diff_t2_scaled <- directforecast(ar_lasso_model_2, h = 1)
-    pred_diff_t2_unscaled = as.numeric(pred_diff_t2_scaled)*sd_ + mu
+    model_tmp2 <- constructModel(extended_diff, p = n_lags, struct = 'Basic',
+                                 gran = c(0.05), ownlambdas = TRUE, 
+                                 T1 = floor(nrow(train_diff) * 0.65), verbose = FALSE)
     
-    level_t2 <- level_t1 + as.numeric(pred_diff_t2_unscaled)
+    cv_model_tmp_2 <- cv.BigVAR(model_tmp2)
+    pred_diff_t2_ci <- predict(cv_model_tmp_2, n.ahead = 1, confint = TRUE)
     
-    # Get last observed value at time t
-    #last_obs <- as.numeric(tail(train_data_ts_jur1, 1))
+    # Extract difference forecasts
+    diff_t2_mean <- as.numeric(pred_diff_t2_ci$forecast)
+    diff_t2_lower <- as.numeric(pred_diff_t2_ci$lower)
+    diff_t2_upper <- as.numeric(pred_diff_t2_ci$upper)
     
-    #STEP AHEAD: Actual values at t + n
-    actual_values <- as.numeric(future_real_ts_jur1[week_t + 1, ])
+    # Step 2 variance in DIFFERENCES (conditional on t+1)
+    var_diff_t2_cond <- ((diff_t2_upper - diff_t2_lower) / (2 * z))^2
     
+    # 6. PROPAGATE VARIANCE
+    # Total variance for cumulative difference (Δy_t+1 + Δy_t+2):
+    # Assuming independence of forecast errors across time:
+    # Var(Δy_t+1 + Δy_t+2) = Var(Δy_t+1) + Var(Δy_t+2|y_t+1)
+    var_diff_cumulative <- var_diff_t1 + var_diff_t2_cond
+    sd_diff_cumulative <- sqrt(var_diff_cumulative)
+    
+    # 7. Final t+2 forecast in LEVELS
+    level_t2_mean <- last_obs + diff_t1_mean + diff_t2_mean
+    
+    # CI for cumulative difference
+    diff_cumulative_lower <- (diff_t1_mean + diff_t2_mean) - z * sd_diff_cumulative
+    diff_cumulative_upper <- (diff_t1_mean + diff_t2_mean) + z * sd_diff_cumulative
+    
+    # Convert to level CIs
+    level_t2_lower <- last_obs + diff_cumulative_lower
+    level_t2_upper <- last_obs + diff_cumulative_upper
+    
+    # 8. Actual values
+    actual_values <- as.numeric(future_real_ts[week_t + 1, ])
+    
+    # 9. Save results
     df_t <- data.frame(
-      Week_Number = rep(week_number_forecast[week_t + 1], 1),
-      date_week_start = rep(as.Date(list_date_week_start[week_t + 1]), 1),
-      #Week_Number = rep(week_number_forecast[week_t + (n_step_ahead - 1)], 1),
-      #date_week_start = rep(date_week_start_list[week_t + (n_step_ahead - 1)], 1),
-      Jurisdiction = jur_name,
-      Predicted = pmax(level_t2, 0),
-      Actual = actual_values
+      Week_Number = rep(week_number_forecast[week_t + 1], length(juris_names)),
+      date_week_start = rep(as.Date(list_date_week_start[week_t + 1]), length(juris_names)),
+      Jurisdiction = juris_names,
+      Predicted = pmax(level_t2_mean, 0),
+      Lower_CI = pmax(level_t2_lower, 0),
+      Upper_CI = pmax(level_t2_upper, 0),
+      Actual = actual_values,
+      bic_value = cv_model_tmp@BICMSFE,
+      stringsAsFactors = FALSE
     )
     
     results_df <- bind_rows(results_df, df_t)
     
-    # Extend the training set forward by 1 week
-    #train_data_ts_jur1 <- rbind(train_data_ts_jur1, future_data_ts_jur1[week_t, 1])
-    #browser()
-    train_week_t <- rbind(train_week_t, future_data_ts_jur1[week_t, 3])
+    # 10. Extend training set
+    train_week_t <- rbind(train_data_ts, head(future_data_ts, week_t))
   }
   
   results_df <- results_df %>%
     mutate(error = Actual - Predicted)
+  print(summary(results_df$error))
   
-  # Reshape
-  # df_pred <- pivot_wider(results_df, names_from = Jurisdiction, values_from = Predicted) %>%
-  #   arrange(Week_Number)
-  # df_true <- pivot_wider(results_df, names_from = Jurisdiction, values_from = Actual) %>%
-  #   arrange(Week_Number)
+  # Wide-format
+  df_pred <- pivot_wider(results_df, names_from = Jurisdiction, values_from = Predicted) %>%
+    arrange(Week_Number)
+  df_true <- pivot_wider(results_df, names_from = Jurisdiction, values_from = Actual) %>%
+    arrange(Week_Number)
   
-  return(results_df)
-  
+  return(list(
+    df_pred_results = results_df,
+    preds = df_pred,
+    true = df_true,
+    df_coeffs = df_coeffs,
+    coeffs_final = coef(cv_model_tmp_2)
+  ))
 }
 
 
+#*****************
+
 AR_model_CI <- function(train_data_ts, 
-                        future_data_ts, 
-                        future_real_ts,
-                        list_jur,
-                        n_step_ahead = 2,
-                        alpha = 0.05) {
+                        future_data_ts, future_real_ts,
+                        list_jur, n_step_ahead = 2, alpha = 0.05) {
   
   # ---- DATA PREPARATION ----
   week_number_forecast <- future_data_ts$Week_Number
@@ -295,3 +316,4 @@ AR_model_CI <- function(train_data_ts,
   
   return(results_df)
 }
+
