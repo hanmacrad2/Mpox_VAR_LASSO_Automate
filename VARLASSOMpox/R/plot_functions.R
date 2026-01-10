@@ -8,21 +8,21 @@ PLOT_CASES_FORECASTS <- function(data_ts,
                                      n_col_plot = 2, ymax = 17,
                                      col_var = "blue", col_ar = "darkgreen",
                                      col_naive = "magenta", 
-                                     three_figures = FALSE, point_size = 2.0) {
+                                     two_figures = TRUE, point_size = 2.0) {
   
   jur_labels <- GET_JUR_LABELS()
   
   data_ts <- data_ts %>% mutate(date_week_start = as.Date(date_week_start))
   df_preds_var <- df_preds_var %>% mutate(date_week_start = as.Date(date_week_start), Method = "VAR")
-  df_preds_ar <- df_preds_ar %>% mutate(date_week_start = as.Date(date_week_start), Method = "AR", Lower_CI = NA, Upper_CI = NA)
-  df_preds_naive <- df_preds_naive %>% mutate(date_week_start = as.Date(date_week_start), Method = "Naive", Lower_CI = NA, Upper_CI = NA)
+  df_preds_ar <- df_preds_ar %>% mutate(date_week_start = as.Date(date_week_start), Method = "AR") #, Lower_CI = NA, Upper_CI = NA)
+  df_preds_naive <- df_preds_naive %>% mutate(date_week_start = as.Date(date_week_start), Method = "Naive") #, Lower_CI = NA, Upper_CI = NA)
   
   df_true_long <- data_ts %>%
     pivot_longer(cols = -c(Week_Number, date_week_start), names_to = "Jurisdiction", values_to = "Cases") %>%
     mutate(Source = "True")
   
   df_preds_all <- bind_rows(df_preds_var, df_preds_ar, df_preds_naive) %>%
-    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method, Lower_CI, Upper_CI) %>%
+    dplyr::select(date_week_start, Week_Number, Jurisdiction, Predicted, Method) %>% #Lower_CI, Upper_CI
     rename(Cases = Predicted) %>%
     mutate(Source = "Predicted")
   
@@ -38,15 +38,16 @@ PLOT_CASES_FORECASTS <- function(data_ts,
   date_seq <- df_plot %>% distinct(date_week_start) %>% arrange(date_week_start) %>% pull(date_week_start)
   x_breaks <- date_seq[seq(1, length(date_seq), by = 4)]
   
+  #browser()
   plot_subset <- function(subset_jur) {
     ggplot() +
       # Ribbon for VAR-Lasso
-      geom_ribbon(
-        data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "VAR-Lasso"),
-        aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI),
-        fill = col_var, alpha = 0.2
-      ) +
-      
+      # geom_ribbon(
+      #   data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Method == "VAR-Lasso"),
+      #   aes(x = date_week_start, ymin = Lower_CI, ymax = Upper_CI),
+      #   fill = col_var, alpha = 0.2
+      # ) +
+      # 
       # Reported cases
       geom_line(data = df_plot %>% filter(Jurisdiction_orig %in% subset_jur, Source == "True"),
                 aes(x = date_week_start, y = Cases, linetype = "Reported cases"),
@@ -84,7 +85,7 @@ PLOT_CASES_FORECASTS <- function(data_ts,
       )
   }
   
-  if (!three_figures) {
+  if (!two_figures) {
     return(plot_subset(list_ordered_jur))
   } else {
     jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur)/4))
@@ -120,7 +121,7 @@ PLOT_CASES_FORECASTS_CI_LEGEND <- function(data_ts,
                                                n_col_plot = 2, ymax = 17,
                                                col_var = "blue", col_ar = "darkgreen",
                                                col_naive = "magenta", 
-                                               three_figures = TRUE, point_size = 2.0) {
+                                               two_figures = TRUE, point_size = 2.0) {
   
   jur_labels <- GET_JUR_LABELS()
   
@@ -200,7 +201,7 @@ PLOT_CASES_FORECASTS_CI_LEGEND <- function(data_ts,
       )
   }
   
-  if (!three_figures) {
+  if (!two_figures) {
     return(plot_subset(list_ordered_jur))
   } else {
     jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur)/4))
@@ -331,7 +332,7 @@ PLOT_REPORTED_CASES <- function(data_ts,
                                 list_ordered_jur, 
                                 title_plot,
                                 point_size = 2.0,
-                                three_figures = TRUE) {
+                                two_figures = TRUE) {
   
   # --- Step 0: Jurisdiction labels ---
   jur_labels = GET_JUR_LABELS()
@@ -392,7 +393,7 @@ PLOT_REPORTED_CASES <- function(data_ts,
   }
   
   # --- Step 6: Multi-panel mode ---
-  if (!three_figures) {
+  if (!two_figures) {
     return(plot_subset(list_ordered_jur))
   } else {
     
@@ -1007,7 +1008,7 @@ PLOT_CASES_FORECASTS_CI <- function(data_ts,
                                         n_col_plot = 2, ymax = 17,
                                         col_var = "blue", col_ar = "darkgreen",
                                         col_naive = "magenta", 
-                                        three_figures = TRUE, point_size = 2.0) {
+                                        two_figures = TRUE, point_size = 2.0) {
   
   jur_labels <- GET_JUR_LABELS()
   
@@ -1090,7 +1091,7 @@ PLOT_CASES_FORECASTS_CI <- function(data_ts,
       )
   }
   
-  if (!three_figures) {
+  if (!two_figures) {
     return(plot_subset(list_ordered_jur))
   } else {
     jur_chunks <- split(list_ordered_jur, ceiling(seq_along(list_ordered_jur)/4))

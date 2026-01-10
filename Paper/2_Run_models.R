@@ -31,4 +31,6 @@ df_preds_ar <- AR_model_jurs(train_data_ts_smooth, future_data_ts_smooth,
 
 df_preds_ar_ci = AR_model_CI(train_data_ts_smooth, future_data_ts_smooth, future_data_ts, list_jur)
 
+saveRDS(df_preds_ar_ci, file = 'df_preds_ar_ci.rds')
 
+#saveRDS(df_preds_var_conf_int, file = 'df_preds_var_conf_int.rds')

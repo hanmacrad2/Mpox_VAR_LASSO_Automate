@@ -32,6 +32,9 @@ list_metrics_naive = GET_SLOPE_WEIGHTED_METRICS(df_slope, df_preds_naive)
 #2. PLOT ALL FORECASTS
 title_plot = 'VAR-Lasso, AR-Lasso & Naive two week-ahead forecasts with Prediction intervals for January-November 2024 - Top 8 Jurisdictions'
 PLOT_CASES_FORECASTS(data_24_ts_forecast_start, df_preds_var, df_preds_ar, df_preds_naive, list_jur, title_plot)
+#ONE PLOT
+PLOT_CASES_FORECASTS(data_24_ts_forecast_start, df_preds_var, df_preds_ar, df_preds_naive, list_jur, title_plot, three_figures = FALSE)
+
 
 #CONFIDENCE INTERVALS WITH
 title_ci_plot = 'VAR-Lasso, AR-Lasso & Naive two week-ahead forecasts for Jan-Nov 2024 with 95% Prediction intervals'
