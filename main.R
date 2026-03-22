@@ -5,7 +5,7 @@
 #' @section Input Parameters (runtime_params.json):
 #' \describe{
 #'   \item{last_data_date}{Last date to include in training (default: last date in data)}
-#'   \item{portal_jurisdiction}{Jurisdiction for output (default: "SanDiego" if in data, else first)}
+#'   \item{portal_jurisdictions}{Jurisdictions for output (default: "SanDiego" if in data, else first)}
 #'   \item{model_jurisdictions}{Jurisdictions for VAR training (default: all in data)}
 #'   \item{roll_window}{Rolling mean window for smoothing (default: 4)}
 #'   \item{n_lags}{Maximum lag order for models (default: 25)}
@@ -57,7 +57,7 @@ data <- data[data$Jurisdiction %in% params$model_jurisdictions, ]
 message(sprintf("Parameters: roll_window=%d, n_lags=%d",
                 params$roll_window, params$n_lags))
 message(sprintf("Model jurisdictions: %s", paste(params$model_jurisdictions, collapse = ", ")))
-message(sprintf("Portal jurisdiction: %s", params$portal_jurisdiction))
+message(sprintf("Portal jurisdictions: %s", paste(params$portal_jurisdictions, collapse = ", ")))
 
 # =============================================================================
 # 2. PREPARE FORECAST DATA
@@ -90,7 +90,7 @@ write_outputs(
   data_long = data,
   forecasts = forecasts,
   forecast_data = forecast_data,
-  portal_jurisdiction = params$portal_jurisdiction
+  portal_jurisdictions = params$portal_jurisdictions
 )
 
 message("=== Pipeline complete ===")

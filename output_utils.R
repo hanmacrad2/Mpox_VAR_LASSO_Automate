@@ -7,15 +7,15 @@ source("file_utils.R")
 #' Write forecast CSV for portal
 #'
 #' Creates mpox_forecasts.csv with historical observations and forecast predictions
-#' for a single jurisdiction.
+#' for the specified jurisdictions.
 #'
 #' @param data_long Original long-format case data
 #' @param forecasts Forecast results from run_all_forecasts()
-#' @param portal_jurisdiction Jurisdiction to include in output
+#' @param portal_jurisdictions Vector of jurisdiction names to include in output
 #' @param output_dir Output directory
 #'
 #' @return Path to the output file
-write_forecasts_csv <- function(data_long, forecasts, portal_jurisdiction, output_dir = NULL) {
+write_forecasts_csv <- function(data_long, forecasts, portal_jurisdictions, output_dir = NULL) {
   if (is.null(output_dir)) {
     output_dir <- get_output_dir(default = getwd())
   }
@@ -24,12 +24,13 @@ write_forecasts_csv <- function(data_long, forecasts, portal_jurisdiction, outpu
     dir.create(output_dir, recursive = TRUE)
   }
 
-  # Historical observations for this jurisdiction
-  jur_data <- data_long[data_long$Jurisdiction == portal_jurisdiction, ]
-  jur_data <- jur_data[order(jur_data$date_week_start), ]
+  # Historical observations for all requested jurisdictions
+  jur_data <- data_long[data_long$Jurisdiction %in% portal_jurisdictions, ]
+  jur_data <- jur_data[order(jur_data$Jurisdiction, jur_data$date_week_start), ]
 
   obs_df <- data.frame(
     epiweek_start = as.Date(jur_data$date_week_start),
+    jurisdiction = jur_data$Jurisdiction,
     cases = jur_data$Cases,
     type = "observation",
     method = NA_character_,
@@ -39,12 +40,13 @@ write_forecasts_csv <- function(data_long, forecasts, portal_jurisdiction, outpu
     stringsAsFactors = FALSE
   )
 
-  # Forecasts for this jurisdiction
-  jur_forecasts <- forecasts[forecasts$jurisdiction == portal_jurisdiction, ]
+  # Forecasts for all requested jurisdictions
+  jur_forecasts <- forecasts[forecasts$jurisdiction %in% portal_jurisdictions, ]
 
   if (nrow(jur_forecasts) > 0) {
     forecast_df <- data.frame(
       epiweek_start = as.Date(jur_forecasts$date_week_start),
+      jurisdiction = jur_forecasts$jurisdiction,
       cases = NA_real_,
       type = "forecast",
       method = jur_forecasts$method,
@@ -75,11 +77,11 @@ write_forecasts_csv <- function(data_long, forecasts, portal_jurisdiction, outpu
 #' Creates results.json with summary metadata and output manifest.
 #'
 #' @param forecast_data Prepared forecast data from prepare_forecast_data()
-#' @param portal_jurisdiction Jurisdiction included in output
+#' @param portal_jurisdictions Vector of jurisdiction names included in output
 #' @param output_dir Output directory
 #'
 #' @return Path to the output file
-write_results_json <- function(forecast_data, portal_jurisdiction, output_dir = NULL) {
+write_results_json <- function(forecast_data, portal_jurisdictions, output_dir = NULL) {
   if (is.null(output_dir)) {
     output_dir <- get_output_dir(default = getwd())
   }
@@ -88,7 +90,7 @@ write_results_json <- function(forecast_data, portal_jurisdiction, output_dir = 
     summary = list(
       forecast_origin_date = as.character(forecast_data$last_data_date),
       forecast_date = as.character(forecast_data$forecast_date),
-      jurisdiction = portal_jurisdiction,
+      jurisdictions = as.list(portal_jurisdictions),
       methods = c("VAR_LASSO", "AR_LASSO", "NAIVE")
     ),
     plots = list(),
@@ -111,13 +113,13 @@ write_results_json <- function(forecast_data, portal_jurisdiction, output_dir = 
 #' @param data_long Original long-format case data
 #' @param forecasts Forecast results from run_all_forecasts()
 #' @param forecast_data Prepared forecast data from prepare_forecast_data()
-#' @param portal_jurisdiction Jurisdiction for output
+#' @param portal_jurisdictions Vector of jurisdiction names for output
 #' @param output_dir Output directory
 #'
 #' @return List with paths to both output files
-write_outputs <- function(data_long, forecasts, forecast_data, portal_jurisdiction, output_dir = NULL) {
-  csv_path <- write_forecasts_csv(data_long, forecasts, portal_jurisdiction, output_dir)
-  json_path <- write_results_json(forecast_data, portal_jurisdiction, output_dir)
+write_outputs <- function(data_long, forecasts, forecast_data, portal_jurisdictions, output_dir = NULL) {
+  csv_path <- write_forecasts_csv(data_long, forecasts, portal_jurisdictions, output_dir)
+  json_path <- write_results_json(forecast_data, portal_jurisdictions, output_dir)
 
   list(
     csv = csv_path,
@@ -129,9 +131,12 @@ write_outputs <- function(data_long, forecasts, forecast_data, portal_jurisdicti
 #' Check portal plot
 #'
 #' Test function to load and visualize the portal CSV output.
-#' Plots historical observations and forecasts with confidence intervals.
+#' Plots historical observations and forecasts with confidence intervals
+#' for a single jurisdiction (the first in the CSV by default).
 #'
 #' @param csv_path Path to mpox_forecasts.csv (default: output_dir/mpox_forecasts.csv)
+#' @param portal_jurisdictions Vector of jurisdictions to plot; uses first element
+#'   (default: NULL, auto-detects from CSV)
 #' @param n_obs Number of recent observations to plot (default: NA, plots all)
 #' @param show_var Show VAR-Lasso forecasts (default: TRUE)
 #' @param show_ar Show AR-Lasso forecasts (default: TRUE)
@@ -139,6 +144,7 @@ write_outputs <- function(data_long, forecasts, forecast_data, portal_jurisdicti
 #'
 #' @return ggplot object
 check_portal_plot <- function(csv_path = NULL,
+                               portal_jurisdictions = NULL,
                                n_obs = NA,
                                show_var = TRUE,
                                show_ar = TRUE,
@@ -154,12 +160,20 @@ check_portal_plot <- function(csv_path = NULL,
   df <- read.csv(csv_path, stringsAsFactors = FALSE)
   df$epiweek_start <- as.Date(df$epiweek_start)
 
+  # Select jurisdiction to plot (first available)
+  if (is.null(portal_jurisdictions)) {
+    plot_jur <- unique(df$jurisdiction)[1]
+  } else {
+    plot_jur <- portal_jurisdictions[1]
+  }
+  df <- df[df$jurisdiction == plot_jur, ]
+
   # Split observations and forecasts
   obs_df <- df[df$type == "observation", ]
   forecast_df <- df[df$type == "forecast", ]
 
   # Restrict observations if n_obs specified
- if (!is.na(n_obs) && nrow(obs_df) > n_obs) {
+  if (!is.na(n_obs) && nrow(obs_df) > n_obs) {
     obs_df <- tail(obs_df, n_obs)
   }
 
@@ -224,7 +238,7 @@ check_portal_plot <- function(csv_path = NULL,
     ggplot2::labs(
       x = "Week",
       y = "Cases",
-      title = "Mpox Forecasts"
+      title = sprintf("Mpox Forecasts - %s", plot_jur)
     ) +
     ggplot2::theme_minimal(base_size = 14) +
     ggplot2::theme(

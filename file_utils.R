@@ -69,7 +69,7 @@ get_runtime_params_file <- function(default = NULL) {
 #'
 #' Loads parameters from runtime_params.json if available, then applies
 #' static defaults. Data-dependent defaults (model_jurisdictions,
-#' portal_jurisdiction, last_data_date) are set later by apply_data_defaults().
+#' portal_jurisdictions, last_data_date) are set later by apply_data_defaults().
 #'
 #' @param input_dir Input directory for local fallback
 #' @param filename Name of the parameters file
@@ -77,7 +77,7 @@ get_runtime_params_file <- function(default = NULL) {
 #' @return List of runtime parameters with static defaults applied:
 #'   \itemize{
 #'     \item \code{last_data_date} - Last date to include (default: NULL, uses all data)
-#'     \item \code{portal_jurisdiction} - Jurisdiction for output (default: NULL, set from data)
+#'     \item \code{portal_jurisdictions} - Jurisdictions for output (default: NULL, set from data)
 #'     \item \code{model_jurisdictions} - Jurisdictions for VAR training (default: NULL, uses all)
 #'     \item \code{roll_window} - Smoothing window in weeks (default: 4)
 #'     \item \code{n_lags} - Maximum lag order for models (default: 25)
@@ -108,7 +108,7 @@ load_runtime_params <- function(input_dir = NULL, filename = "runtime_params.jso
 #' Apply data-dependent parameter defaults
 #'
 #' Sets defaults for parameters that depend on the loaded data:
-#' model_jurisdictions, portal_jurisdiction, and last_data_date.
+#' model_jurisdictions, portal_jurisdictions, and last_data_date.
 #'
 #' @param params List of runtime parameters from load_runtime_params()
 #' @param data Loaded data frame from load_mpox_data()
@@ -123,23 +123,24 @@ apply_data_defaults <- function(params, data) {
     params$model_jurisdictions <- jurisdictions_in_data
   }
 
-  # portal_jurisdiction: default to SanDiego if present, else first jurisdiction
-  if (is.null(params$portal_jurisdiction)) {
-    if ("SanDiego" %in% params$model_jurisdictions) {
-      params$portal_jurisdiction <- "SanDiego"
-    } else {
-      params$portal_jurisdiction <- params$model_jurisdictions[1]
-    }
+  # portal_jurisdictions: default to all model_jurisdictions
+  if (is.null(params$portal_jurisdictions)) {
+    params$portal_jurisdictions <- params$model_jurisdictions
   }
 
-  # Validate portal_jurisdiction is in model_jurisdictions
-
-  if (!(params$portal_jurisdiction %in% params$model_jurisdictions)) {
+  # Validate portal_jurisdictions are in model_jurisdictions
+  invalid <- setdiff(params$portal_jurisdictions, params$model_jurisdictions)
+  if (length(invalid) > 0) {
     warning(sprintf(
-      "portal_jurisdiction '%s' not in model_jurisdictions, using '%s'",
-      params$portal_jurisdiction, params$model_jurisdictions[1]
+      "portal_jurisdictions not in model_jurisdictions: %s (removing them)",
+      paste(invalid, collapse = ", ")
     ))
-    params$portal_jurisdiction <- params$model_jurisdictions[1]
+    params$portal_jurisdictions <- intersect(params$portal_jurisdictions, params$model_jurisdictions)
+  }
+
+  if (length(params$portal_jurisdictions) == 0) {
+    warning("No valid portal_jurisdictions, falling back to all model_jurisdictions")
+    params$portal_jurisdictions <- params$model_jurisdictions
   }
 
   params
